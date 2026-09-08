@@ -1,0 +1,44 @@
+name: Check GlobalNews Cloudflare Cron
+
+on:
+  push:
+    paths:
+      - ".github/workflows/check-cloudflare-cron.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Inspect Workers, schedules and dispatch targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$CLOUDFLARE_API_TOKEN" && -n "$CLOUDFLARE_ACCOUNT_ID" ]] || {
+            echo "Missing Cloudflare credentials" >&2
+            exit 1
+          }
+          api="https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts"
+          auth=(-H "Authorization: Bearer $CLOUDFLARE_API_TOKEN")
+          scripts="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api")"
+          mapfile -t names < <(printf '%s' "$scripts" | jq -r '.result[]?.id')
+          for name in "${names[@]}"; do
+            schedules="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name/schedules" || true)"
+            mapfile -t crons < <(printf '%s' "$schedules" | jq -r '.result[]?.cron // empty' 2>/dev/null)
+            [[ ${#crons[@]} -gt 0 ]] || continue
+            for cron in "${crons[@]}"; do
+              echo "WORKER=$name CRON=$cron"
+            done
+            curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name" |
+              tr '\r' '\n' |
+              grep -Eo "repos/[^/[:space:]\"']+/[^/[:space:]\"']+/actions/workflows|[A-Za-z0-9._-]+\.yml" |
+              sort -u |
+              sed "s/^/WORKER=$name TARGET=/" || true
+          done
