@@ -18,6 +18,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: refresh-globalnews
@@ -25,6 +27,9 @@ concurrency:
 
 jobs:
   refresh:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -69,3 +74,18 @@ jobs:
               sleep $((attempt * 3))
             done
           fi
+
+      - name: Build refreshed site
+        run: npm run build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Deploy refreshed site
+        id: deployment
+        uses: actions/deploy-pages@v4
