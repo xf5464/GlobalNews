@@ -47,32 +47,33 @@ async function main() {
     part: 'snippet,statistics', id: videoIds.join(','), maxResults: '50', key: API_KEY,
   });
   const videosPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/videos?${videoParams}`);
-  const items = youtubeItemsFromResponses(searchPayload, videosPayload).slice(0, MAX_ITEMS);
+  const items = youtubeItemsFromResponses(searchPayload, videosPayload).slice(0, 25);
   if (items.length < MAX_ITEMS) throw new Error(`YouTube returned only ${items.length}/${MAX_ITEMS} usable videos.`);
 
   const attempted = await addChineseTranslations(items.map((item) => ({
     ...item,
     titleZh: knownTranslations.get(item.url) || '',
   })), 450, { strict: false });
-  const untranslated = attempted.filter((item) =>
-    !containsChinese(item.title) &&
-    !containsChinese(item.titleZh) &&
-    !isLanguageNeutralTitle(item.title));
+  const translated = attempted.filter((item) =>
+    containsChinese(item.title) ||
+    containsChinese(item.titleZh) ||
+    isLanguageNeutralTitle(item.title));
   const fetchedAt = new Date(now).toISOString();
   let freshYoutube;
-  if (untranslated.length) {
+  if (translated.length < MAX_ITEMS) {
     const translatedPrevious = previousYoutube
       .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh))
       .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
       .slice(0, MAX_ITEMS);
     if (translatedPrevious.length !== MAX_ITEMS) {
-      throw new Error(`Refusing to publish ${untranslated.length} untranslated YouTube title(s) without a complete translated fallback.`);
+      throw new Error(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated from ${attempted.length} candidates, without a complete fallback.`);
     }
     freshYoutube = translatedPrevious.map((item) => ({ ...item, isCached: true }));
-    console.warn(`YouTube translation failed for ${untranslated.length} item(s); reused the previous translated Top 10.`);
+    console.warn(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated; reused the previous translated Top 10.`);
   } else {
-    freshYoutube = attempted.map((item) => ({
+    freshYoutube = translated.slice(0, MAX_ITEMS).map((item, index) => ({
       ...item,
+      sourceOrder: index,
       id: itemId(item.url),
       fetchedAt,
       sourceUpdatedAt: fetchedAt,

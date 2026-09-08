@@ -133,6 +133,16 @@ test("orders YouTube results by views and creates direct video links", () => {
   assert.match(items[0].engagement, /100 次观看/);
 });
 
+test("keeps a larger YouTube candidate pool so failed translations can be skipped", () => {
+  const search = { items: Array.from({ length: 12 }, (_, index) => ({ id: { videoId: String(index) } })) };
+  const videos = { items: Array.from({ length: 12 }, (_, index) => ({
+    id: String(index),
+    snippet: { title: `Video ${index}`, channelTitle: "Channel", publishedAt: "2026-09-08T01:00:00Z" },
+    statistics: { viewCount: String(12 - index) },
+  })) };
+  assert.equal(youtubeItemsFromResponses(search, videos).length, 12);
+});
+
 test("parses Google News RSS and removes source suffix", () => {
   const xml = `<rss><channel><item><title><![CDATA[Nvidia launches a new chip - Reuters]]></title><link>https://example.com/a?x=1&amp;y=2</link><pubDate>Fri, 04 Sep 2026 01:00:00 GMT</pubDate><source url="https://reuters.com">Reuters</source></item></channel></rss>`;
   assert.deepEqual(parseRssItems(xml, "tech")[0], {

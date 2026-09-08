@@ -625,7 +625,6 @@ function youtubeItemsFromResponses(searchPayload, videosPayload) {
     };
   }).filter((item) => item.title && item.sourceKey !== "youtube-undefined")
     .sort((left, right) => right.views - left.views || right.likes - left.likes || right.comments - left.comments)
-    .slice(0, MAX_ITEMS)
     .map((item, index) => ({ ...item, sourceOrder: index }));
 }
 
@@ -644,9 +643,17 @@ async function fetchYouTubeTop(apiKey, now = Date.now(), fetcher = fetch) {
     part: "snippet,statistics", id: videoIds.join(","), maxResults: "50", key: apiKey,
   });
   const videosPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/videos?${videoParams}`, 15_000, fetcher);
-  const items = youtubeItemsFromResponses(searchPayload, videosPayload);
-  if (items.length < MAX_ITEMS) throw new Error(`YouTube returned only ${items.length}/${MAX_ITEMS} usable videos.`);
-  return addChineseTranslations(items);
+  const candidates = youtubeItemsFromResponses(searchPayload, videosPayload).slice(0, 25);
+  if (candidates.length < MAX_ITEMS) throw new Error(`YouTube returned only ${candidates.length}/${MAX_ITEMS} usable videos.`);
+  const attempted = await addChineseTranslations(candidates, 450, { strict: false });
+  const translated = attempted
+    .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh) || isLanguageNeutralTitle(item.title))
+    .slice(0, MAX_ITEMS)
+    .map((item, index) => ({ ...item, sourceOrder: index }));
+  if (translated.length < MAX_ITEMS) {
+    throw new Error(`YouTube returned only ${translated.length}/${MAX_ITEMS} translated videos from ${candidates.length} candidates.`);
+  }
+  return assertChineseTranslations(translated);
 }
 
 function archivedItems(filePath) {
