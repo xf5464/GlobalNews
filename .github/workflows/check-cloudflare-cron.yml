@@ -33,6 +33,10 @@ jobs:
             echo "WORKER=$name"
             schedules="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name/schedules" || true)"
             printf '%s' "$schedules" | jq -c '{success, errors, result}' | sed "s/^/WORKER=$name SCHEDULES=/" || true
+            settings="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name/settings" || true)"
+            printf '%s' "$settings" |
+              jq -c '[.result.bindings[]? | {name, type}]' |
+              sed "s/^/WORKER=$name BINDINGS=/" || true
             mapfile -t crons < <(
               printf '%s' "$schedules" |
                 jq -r '.result | .. | strings | select(test("^\\s*([*0-9/,\\-]+\\s+){4}[*0-9/,\\-]+\\s*$"))' 2>/dev/null |
