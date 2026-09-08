@@ -21,6 +21,8 @@ test("reader shows the latest snapshot without hour filters", () => {
   const html = fs.readFileSync("site/index.html", "utf8");
   const script = fs.readFileSync("site/reader.js", "utf8");
   const hnScript = fs.readFileSync("site/reader-hn.js", "utf8");
+  const styles = fs.readFileSync("site/reader.css", "utf8");
+  const uiRules = fs.readFileSync("docs/reader-ui-rules.md", "utf8");
   assert.doesNotMatch(html, /time-tab|6小时|12小时|18小时|24小时/);
   assert.doesNotMatch(script, /activeHours|selectHours|timeTabs/);
   assert.match(html, /v2026\.\d{2}\.\d{2}\.\d+/);
@@ -34,6 +36,8 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /whiteSpace = 'nowrap'/);
   assert.match(script, /globalnews-recent-v1/);
   assert.match(script, /ARCHIVE_URLS/);
+  assert.match(styles, /\.subtle\s*\{[^}]*white-space:\s*nowrap[^}]*text-overflow:\s*ellipsis/s);
+  assert.match(uiRules, /包含“抓取于”的顶部状态行必须固定为一行/);
 });
 
 test("takes a publisher homepage lead instead of a Google News search result", () => {

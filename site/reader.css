@@ -38,7 +38,10 @@ h1, h2 { font-family: ui-serif, "Songti SC", STSong, serif; letter-spacing: -.02
 h1 { margin: 0; font-size: clamp(38px, 9vw, 56px); line-height: 1.08; }
 h2 { margin: 0; font-size: 28px; line-height: 1.25; }
 .subtle, .panel p { color: var(--muted); line-height: 1.6; }
-.subtle { margin: 12px 0 0; font-size: 14px; }
+.subtle {
+  margin: 12px 0 0; overflow: hidden; font-size: 14px;
+  white-space: nowrap; text-overflow: ellipsis;
+}
 
 .category-tabs {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 0 0 24px; padding: 4px;
