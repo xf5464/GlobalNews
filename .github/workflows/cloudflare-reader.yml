@@ -34,6 +34,19 @@ jobs:
             exit 1
           }
 
+      - name: Remove migrated DailyReview refresh trigger
+        run: |
+          schedules="$(curl --fail-with-body --silent --show-error -X PUT -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" -H "Content-Type: application/json" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/dailyreview-cron/schedules" --data '[{"cron":"17 4,10,16,22 * * *"}]')"
+          SCHEDULES_RESPONSE="$schedules" node - <<'NODE'
+          const result = JSON.parse(process.env.SCHEDULES_RESPONSE || '{}');
+          const crons = (result.result?.schedules || []).map((item) => item.cron).sort();
+          const expected = ['17 4,10,16,22 * * *'];
+          if (!result.success || JSON.stringify(crons) !== JSON.stringify(expected)) {
+            throw new Error(`Unexpected DailyReview schedules: ${JSON.stringify(result)}`);
+          }
+          console.log('Removed DailyReview */30 trigger and consolidated its four existing schedules.');
+          NODE
+
       - name: Deploy Worker
         run: npx --yes wrangler@4 deploy --config cloudflare/wrangler.reader.toml
 
@@ -42,7 +55,7 @@ jobs:
           response="$(curl --fail --silent --show-error --retry 6 --retry-delay 5 --retry-all-errors https://globalnews-reader.xf5464.workers.dev/)"
           HEALTH_RESPONSE="$response" node - <<'NODE'
           const health = JSON.parse(process.env.HEALTH_RESPONSE || '{}');
-          if (health.service !== 'GlobalNews Reader' || health.status !== 'ok') {
+          if (health.service !== 'GlobalNews Reader' || health.status !== 'ok' || health.cloudflareCron !== '*/30 * * * *') {
             throw new Error(`Unexpected health response: ${JSON.stringify(health)}`);
           }
           console.log(`Worker healthy: ${health.workerVersion}`);
