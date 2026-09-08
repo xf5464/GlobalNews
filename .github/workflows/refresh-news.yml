@@ -3,11 +3,6 @@ name: Refresh GlobalNews
 on:
   schedule:
     - cron: "*/30 * * * *"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/refresh-news.yml"
   workflow_dispatch:
     inputs:
       window_hours:
