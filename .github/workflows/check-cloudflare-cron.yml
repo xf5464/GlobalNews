@@ -51,4 +51,16 @@ jobs:
               grep -Eo "repos/[^/[:space:]\"']+/[^/[:space:]\"']+/actions/workflows|[A-Za-z0-9._-]+\.yml" |
               sort -u |
               sed "s/^/WORKER=$name TARGET=/" || true
+            if [[ "$name" == "dailyreview-cron" ]]; then
+              curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name" -o /tmp/dailyreview-cron.txt
+              python3 - <<'PY'
+import re
+text = open("/tmp/dailyreview-cron.txt", "rb").read().decode("utf-8", "replace")
+for pattern in (r"scheduled", r"(?:event|controller)\.cron", r"17 4", r"17 10", r"17 16", r"17 22"):
+    for match in list(re.finditer(pattern, text, re.I))[:4]:
+        start = max(0, match.start() - 180)
+        end = min(len(text), match.end() + 260)
+        print("DAILYREVIEW_CRON_CODE=" + re.sub(r"\s+", " ", text[start:end]))
+PY
+            fi
           done
