@@ -30,8 +30,14 @@ jobs:
           scripts="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api")"
           mapfile -t names < <(printf '%s' "$scripts" | jq -r '.result[]?.id')
           for name in "${names[@]}"; do
+            echo "WORKER=$name"
             schedules="$(curl --fail-with-body --silent --show-error "${auth[@]}" "$api/$name/schedules" || true)"
-            mapfile -t crons < <(printf '%s' "$schedules" | jq -r '.result[]?.cron // empty' 2>/dev/null)
+            printf '%s' "$schedules" | jq -c '{success, errors, result}' | sed "s/^/WORKER=$name SCHEDULES=/" || true
+            mapfile -t crons < <(
+              printf '%s' "$schedules" |
+                jq -r '.result | .. | strings | select(test("^\\s*([*0-9/,\\-]+\\s+){4}[*0-9/,\\-]+\\s*$"))' 2>/dev/null |
+                sort -u
+            )
             [[ ${#crons[@]} -gt 0 ]] || continue
             for cron in "${crons[@]}"; do
               echo "WORKER=$name CRON=$cron"
