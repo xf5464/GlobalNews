@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 
 const {
-  NEWS_SOURCES, assertChineseTranslations, detectTitleLanguage, environmentFlag, isPaywalledItem, isSameWorldEvent, isSimilarTitle, newsMessage, parseHomepageHeadline, parseRssItems, publishedDateFromHtml, rankAndDedupe, rankWorldCandidates,
+  NEWS_SOURCES, assertChineseTranslations, detectTitleLanguage, environmentFlag, isLanguageNeutralTitle, isPaywalledItem, isSameWorldEvent, isSimilarTitle, newsMessage, parseHomepageHeadline, parseRssItems, publishedDateFromHtml, rankAndDedupe, rankWorldCandidates,
   readerUrl, recipients, resolveGoogleNewsItems, resolveGoogleNewsUrl,
   youtubeItemsFromResponses,
 } = require("../scripts/send-hot-news-email");
@@ -98,6 +98,15 @@ test("detects non-English YouTube title languages", () => {
   assert.equal(detectTitleLanguage("Tesla lanza el coche para el mercado"), "es");
   assert.equal(detectTitleLanguage("The latest Nvidia GPU driver is bad"), "en");
   assert.equal(detectTitleLanguage("特斯拉交付创新高"), "zh-CN");
+});
+
+test("accepts language-neutral model numbers without weakening translation checks", async () => {
+  assert.equal(isLanguageNeutralTitle("LGA1155"), true);
+  assert.equal(isLanguageNeutralTitle("GPT-5"), true);
+  assert.equal(isLanguageNeutralTitle("The latest Nvidia GPU driver is bad"), false);
+  assert.deepEqual(await require("../scripts/send-hot-news-email").addChineseTranslations([
+    { title: "LGA1155", titleZh: "" },
+  ]), [{ title: "LGA1155", titleZh: "LGA1155" }]);
 });
 
 test("uses YouTube universal links for the native-app button", () => {

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const { itemId } = require('./hot-news-archive');
 const {
   addChineseTranslations,
+  isLanguageNeutralTitle,
   youtubeItemsFromResponses,
 } = require('./send-hot-news-email');
 
@@ -53,7 +54,10 @@ async function main() {
     ...item,
     titleZh: knownTranslations.get(item.url) || '',
   })), 450, { strict: false });
-  const untranslated = attempted.filter((item) => !containsChinese(item.title) && !containsChinese(item.titleZh));
+  const untranslated = attempted.filter((item) =>
+    !containsChinese(item.title) &&
+    !containsChinese(item.titleZh) &&
+    !isLanguageNeutralTitle(item.title));
   const fetchedAt = new Date(now).toISOString();
   let freshYoutube;
   if (untranslated.length) {

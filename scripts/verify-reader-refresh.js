@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const { isLanguageNeutralTitle } = require('./send-hot-news-email');
 
 const REQUIRED_CATEGORIES = ['tech', 'market', 'world', 'youtube', 'hn', 'hn-front'];
 const EXPECTED_ITEMS = 10;
@@ -25,7 +26,10 @@ function verifyReaderRefresh(archive, now = Date.now(), maxFetchAgeMinutes = DEF
       return !Number.isFinite(fetchedAt) || now - fetchedAt > maxFetchAgeMinutes * 60_000;
     });
     if (stale.length) failures.push(`${category}: ${stale.length}/${EXPECTED_ITEMS} stale fetch timestamps`);
-    const untranslated = items.filter((item) => !containsChinese(item.title) && !containsChinese(item.titleZh));
+    const untranslated = items.filter((item) =>
+      !containsChinese(item.title) &&
+      !containsChinese(item.titleZh) &&
+      !isLanguageNeutralTitle(item.title));
     if (untranslated.length) failures.push(`${category}: ${untranslated.length}/${EXPECTED_ITEMS} untranslated titles`);
   }
   if (failures.length) throw new Error(`Reader refresh is incomplete; refusing to publish: ${failures.join('; ')}`);

@@ -440,6 +440,11 @@ function containsChinese(value) {
   return /[\u3400-\u9fff]/.test(String(value));
 }
 
+function isLanguageNeutralTitle(value) {
+  const title = String(value || "").trim();
+  return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9][A-Za-z0-9._+/#-]{1,24}$/.test(title);
+}
+
 function detectTitleLanguage(title, hint = "") {
   const text = String(title || "");
   if (containsChinese(text)) return "zh-CN";
@@ -522,7 +527,10 @@ async function translateTitleWithRetry(title, attempts = 1) {
 }
 
 function assertChineseTranslations(items) {
-  const missing = items.filter((item) => !containsChinese(item.title) && !containsChinese(item.titleZh));
+  const missing = items.filter((item) =>
+    !containsChinese(item.title) &&
+    !containsChinese(item.titleZh) &&
+    !isLanguageNeutralTitle(item.title));
   if (missing.length) {
     throw new Error(`Refusing to publish ${missing.length} untranslated title(s): ${missing.map((item) => item.source || item.title).join(", ")}`);
   }
@@ -532,7 +540,7 @@ function assertChineseTranslations(items) {
 async function addChineseTranslations(items, maxBatchBytes = 450, { strict = true } = {}) {
   const output = items.map((item) => ({
     ...item,
-    titleZh: String(item.titleZh || "").trim() || (containsChinese(item.title) ? item.title : ""),
+    titleZh: String(item.titleZh || "").trim() || ((containsChinese(item.title) || isLanguageNeutralTitle(item.title)) ? item.title : ""),
   }));
   const groups = new Map();
   for (let index = 0; index < items.length; index += 1) {
@@ -931,7 +939,7 @@ if (require.main === module) main().catch((error) => { console.error(error.stack
 
 module.exports = {
   NEWS_SOURCES, addChineseTranslations, archivedGoogleNewsUrls, archivedSourceItems, archivedTitleTranslations, assertChineseTranslations, cleanMarkdownTitle, collectHotNews, decodeXml,
-  detectTitleLanguage, environmentFlag, fetchYouTubeTop, isGoogleNewsUrl, isPaywalledItem, isSimilarTitle, newsMessage, normalizeTitle,
+  detectTitleLanguage, environmentFlag, fetchYouTubeTop, isGoogleNewsUrl, isLanguageNeutralTitle, isPaywalledItem, isSimilarTitle, newsMessage, normalizeTitle,
   isSameWorldEvent, parseHomepageHeadline, parseRssItems, publishedDateFromHtml, rankAndDedupe, rankWorldCandidates, readerUrl, recipients, resolveGoogleNewsItems, resolveGoogleNewsUrl,
   translateBatch, translateTitle, youtubeItemsFromResponses,
 };
