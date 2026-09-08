@@ -1,14 +1,9 @@
 'use strict';
 
-// Keep the proven Worker endpoint during migration validation. The Worker source and
-// deployment workflow now live in GlobalNews; switch this URL after its repository
-// secrets are configured and the new globalnews-reader deployment is healthy.
-const API_ROOT = 'https://dailyreview-reader.xf5464.workers.dev';
+const API_ROOT = 'https://globalnews-reader.xf5464.workers.dev';
 const ARCHIVE_URLS = [
   new URL('data/recent.json', location.href).toString(),
   'https://raw.githubusercontent.com/xf5464/GlobalNews/main/site/data/recent.json',
-  // Transitional live-data fallback while DailyReview remains online for validation.
-  'https://raw.githubusercontent.com/xf5464/DailyReview/main/site/reader/data/recent.json',
 ];
 const ARCHIVE_CACHE_KEY = 'globalnews-recent-v1';
 const ARTICLE_CACHE_KEY = 'globalnews-articles-v1';

@@ -19,9 +19,9 @@ npm run build
 
 ## 自动刷新与阅读器 Worker
 
-迁移验证期间，网页继续使用已经在线的 `dailyreview-reader` Worker，并把 DailyReview 的实时新闻快照作为临时回退；`DailyReview` 仓库不会被修改或删除。把以下原仓库密钥配置到 GlobalNews 后，可手动运行对应工作流完成独立切换：
+网页使用独立的 `globalnews-reader` Worker，并只从 GlobalNews 加载新闻快照。`refresh-news.yml` 每 30 分钟刷新一次，也可手动运行：
 
 - `YOUTUBE_API_KEY`：刷新 YouTube Top 10。
 - `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`：部署 `globalnews-reader` Worker。
 
-独立 Worker 验证通过后，把 `site/reader.js` 的 `API_ROOT` 改为 `https://globalnews-reader.xf5464.workers.dev`，并恢复 `refresh-news.yml` 的半小时定时触发。
+`DailyReview` 中的旧新闻模块暂时保留，待单独确认后再移除。
