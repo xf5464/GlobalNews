@@ -1,13 +1,6 @@
 name: Refresh GlobalNews
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/refresh-news.yml"
-      - "scripts/send-hot-news-email.js"
-      - "scripts/refresh-youtube-top10-best-effort.js"
   workflow_dispatch:
     inputs:
       window_hours:
