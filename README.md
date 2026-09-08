@@ -19,7 +19,7 @@ npm run build
 
 ## 自动刷新与阅读器 Worker
 
-网页使用独立的 `globalnews-reader` Worker，并只从 GlobalNews 加载新闻快照。`refresh-news.yml` 每 30 分钟刷新一次，也可手动运行：
+网页使用独立的 `globalnews-reader` Worker，并只从 GlobalNews 加载新闻快照。Cloudflare Cron 每 30 分钟触发一次 `refresh-news.yml`，该工作流也可手动运行：
 
 - `YOUTUBE_API_KEY`：刷新 YouTube Top 10。
 - `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`：部署 `globalnews-reader` Worker。

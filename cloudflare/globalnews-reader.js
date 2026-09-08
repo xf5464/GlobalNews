@@ -2,6 +2,8 @@ const ALLOWED_ORIGIN = "https://xf5464.github.io";
 const MAX_HTML_BYTES = 2_500_000;
 const MAX_ARTICLE_CHARS = 32_000;
 const TRANSLATION_CHUNK_CHARS = 2_400;
+const REFRESH_CRON = "*/30 * * * *";
+const REFRESH_WORKFLOW_URL = "https://api.github.com/repos/xf5464/GlobalNews/actions/workflows/refresh-news.yml/dispatches";
 const PAYWALL_HOSTS = [
   "wsj.com", "bloomberg.com", "ft.com", "barrons.com", "nytimes.com",
   "economist.com", "theinformation.com", "businessinsider.com",
@@ -402,7 +404,29 @@ async function readerApi(request, env, ctx) {
   }
 }
 
+async function dispatchNewsRefresh(env) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
+  const response = await fetch(REFRESH_WORKFLOW_URL, {
+    method: "POST",
+    headers: {
+      accept: "application/vnd.github+json",
+      authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      "content-type": "application/json",
+      "user-agent": "globalnews-reader-cron",
+      "x-github-api-version": "2026-03-10",
+    },
+    body: JSON.stringify({ ref: "main", inputs: { window_hours: "30" } }),
+  });
+  if (!response.ok) {
+    throw new Error(`GlobalNews refresh dispatch failed: HTTP ${response.status} ${await response.text()}`);
+  }
+}
+
 export default {
+  async scheduled(event, env, ctx) {
+    if (event.cron === REFRESH_CRON) ctx.waitUntil(dispatchNewsRefresh(env));
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -413,7 +437,8 @@ export default {
       status: "ok",
       browserFallback: Boolean(env.BROWSER),
       googleNewsResolver: true,
-      workerVersion: "2026.09.08.1",
+      cloudflareCron: REFRESH_CRON,
+      workerVersion: "2026.09.08.2",
     });
   },
 };

@@ -40,6 +40,17 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(uiRules, /包含“抓取于”的顶部状态行必须固定为一行/);
 });
 
+test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
+  const worker = fs.readFileSync("cloudflare/globalnews-reader.js", "utf8");
+  const wrangler = fs.readFileSync("cloudflare/wrangler.reader.toml", "utf8");
+  const workflow = fs.readFileSync(".github/workflows/refresh-news.yml", "utf8");
+  assert.match(worker, /async scheduled\(event, env, ctx\)/);
+  assert.match(worker, /xf5464\/GlobalNews\/actions\/workflows\/refresh-news\.yml\/dispatches/);
+  assert.match(worker, /env\.GITHUB_TOKEN/);
+  assert.match(wrangler, /\[triggers\][\s\S]*crons = \["\*\/30 \* \* \* \*"\]/);
+  assert.doesNotMatch(workflow, /^\s+schedule:/m);
+});
+
 test("takes a publisher homepage lead instead of a Google News search result", () => {
   const source = { name: "Example", hosts: ["example.com"], articlePattern: "^/news/" };
   const markdown = `[Markets](https://example.com/markets/)\n[Current lead story from the publisher](https://www.example.com/news/current-lead)\n[Older story](https://example.com/news/older)`;

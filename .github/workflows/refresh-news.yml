@@ -1,8 +1,6 @@
 name: Refresh GlobalNews
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       window_hours:

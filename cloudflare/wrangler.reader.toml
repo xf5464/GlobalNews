@@ -3,6 +3,9 @@ main = "globalnews-reader.js"
 compatibility_date = "2026-09-04"
 workers_dev = true
 
+[triggers]
+crons = ["*/30 * * * *"]
+
 [ai]
 binding = "AI"
 
