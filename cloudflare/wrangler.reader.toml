@@ -1,0 +1,10 @@
+name = "globalnews-reader"
+main = "globalnews-reader.js"
+compatibility_date = "2026-09-04"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+[browser]
+binding = "BROWSER"

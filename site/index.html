@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#f7f4ed" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>GlobalNews 全球新闻</title>
+    <link rel="icon" href="icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="reader.css" />
+    <script src="reader.js" defer></script>
+    <script src="reader-hn.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-group"><a class="brand" href="./">GlobalNews</a><span class="version-badge">v2026.09.08.1</span></div>
+    </header>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">每日科技、美股、国际、YouTube与Hacker News</p>
+        <h1>热点 Top 10</h1>
+        <p id="archiveMeta" class="subtle" aria-live="polite">正在载入…</p>
+      </section>
+
+      <nav class="category-tabs" role="tablist" aria-label="热点分类">
+        <button class="category-tab" type="button" role="tab" data-category="tech" aria-controls="daysContainer">科技</button>
+        <button class="category-tab" type="button" role="tab" data-category="market" aria-controls="daysContainer">美股</button>
+        <button class="category-tab" type="button" role="tab" data-category="world" aria-controls="daysContainer">国际</button>
+        <button class="category-tab" type="button" role="tab" data-category="youtube" aria-controls="daysContainer">YouTube</button>
+        <button class="category-tab" type="button" role="tab" data-category="hn" aria-controls="daysContainer">Hacker News</button>
+      </nav>
+
+      <section id="daysContainer" class="days" aria-live="polite"></section>
+      <section id="emptyArchive" class="panel" hidden>
+        <h2>还没有热点记录</h2>
+        <p>下一次阅读器新闻刷新后，列表会自动显示在这里。</p>
+      </section>
+    </main>
+
+    <dialog id="readerDialog">
+      <div class="dialog-shell">
+        <header class="dialog-header">
+          <button id="closeDialog" class="icon-button" type="button" aria-label="关闭">关闭</button>
+          <button id="dialogFontButton" class="icon-button" type="button">字号</button>
+        </header>
+        <section id="loadingState" class="dialog-state" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <h2>正在提取并翻译</h2>
+          <p>通常需要几秒，较长文章可能需要更久。</p>
+        </section>
+        <article id="article" hidden>
+          <p id="siteName" class="eyebrow"></p>
+          <h2 id="articleTitle"></h2>
+          <p id="articleMeta" class="meta"></p>
+          <div id="articleBody" class="article-body"></div>
+          <div class="article-footer"><a id="footerSourceLink" target="_blank" rel="noopener noreferrer">查看英文原文</a></div>
+        </article>
+        <section id="errorState" class="dialog-state error-state" hidden role="alert">
+          <p class="eyebrow">暂时无法翻译</p>
+          <h2>文章读取失败</h2>
+          <p id="errorMessage"></p>
+          <div class="error-actions">
+            <button id="retryButton" class="primary" type="button">重试</button>
+            <a id="errorSourceLink" target="_blank" rel="noopener noreferrer">打开英文原文</a>
+          </div>
+        </section>
+      </div>
+    </dialog>
+  </body>
+</html>

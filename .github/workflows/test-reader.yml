@@ -1,0 +1,39 @@
+name: Test GlobalNews Reader
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check published test article
+        run: |
+          article="https://xf5464.github.io/GlobalNews/test-article.html"
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --max-time 15 "$article" | grep -q "GlobalNews Reader Translation Test"; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Check Worker and translate article
+        run: |
+          curl --fail --silent --show-error --max-time 20 https://globalnews-reader.xf5464.workers.dev/ | grep -q '"service":"GlobalNews Reader"'
+          curl --fail --silent --show-error --max-time 180 \
+            "https://globalnews-reader.xf5464.workers.dev/reader-api?url=https%3A%2F%2Fxf5464.github.io%2FGlobalNews%2Ftest-article.html" > reader-result.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const result = JSON.parse(fs.readFileSync('reader-result.json', 'utf8'));
+          if (!result.translatedText || !/[\u3400-\u9fff]/.test(result.translatedText)) {
+            throw new Error(`Reader returned no Chinese translation: ${JSON.stringify(result)}`);
+          }
+          console.log(`Reader OK: ${result.translatedText.length} translated characters.`);
+          NODE
