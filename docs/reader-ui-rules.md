@@ -28,7 +28,7 @@ Hacker News 分类包含两个二级页签：
 
 ## Hacker News 评论入口
 
-每条 Hacker News 新闻的最右侧必须增加“评论”按钮，链接到该条新闻对应的 `news.ycombinator.com/item?id=文章编号` 页面。原新闻标题链接和原有的外部打开按钮保持不变；`当前 Top 10` 与 `Front 日榜 Top 10` 都必须提供该入口。
+每条 Hacker News 新闻的最右侧必须增加“评论”按钮，链接到该条新闻对应的 `news.ycombinator.com/item?id=文章编号` 页面，并与其他非 YouTube 外链一致，使用 `googlechromes://`（HTTP 时使用 `googlechrome://`）直接唤起 Chrome。原新闻标题链接和原有的外部打开按钮保持不变；`当前 Top 10` 与 `Front 日榜 Top 10` 都必须提供该入口。
 
 ## 分类独立刷新
 

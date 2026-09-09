@@ -36,9 +36,11 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /whiteSpace = 'nowrap'/);
   assert.match(hnScript, /hackerNewsCommentsUrl/);
   assert.match(hnScript, /news\.ycombinator\.com\/item\?id=/);
+  assert.match(hnScript, /comments\.href = chromeUrl\(commentsUrl\)/);
   assert.match(hnScript, /comments\.textContent = '评论'/);
   assert.match(styles, /\.hn-comments-link/);
   assert.match(uiRules, /Hacker News 评论入口/);
+  assert.match(uiRules, /googlechromes:\/\//);
   assert.match(script, /globalnews-recent-v1/);
   assert.match(script, /ARCHIVE_URLS/);
   assert.match(styles, /\.subtle\s*\{[^}]*white-space:\s*nowrap[^}]*text-overflow:\s*ellipsis/s);

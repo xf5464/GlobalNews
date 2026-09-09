@@ -88,12 +88,12 @@ itemButton = function itemButtonWithHackerNewsStats(item, rank) {
   if (commentsUrl) {
     const comments = document.createElement('a');
     comments.className = 'hn-comments-link';
-    comments.href = commentsUrl;
+    comments.href = chromeUrl(commentsUrl);
     comments.target = '_blank';
     comments.rel = 'noopener noreferrer';
     comments.textContent = '评论';
-    comments.title = '前往 Hacker News 评论页';
-    comments.setAttribute('aria-label', `查看 Hacker News 评论：${item.titleZh || item.title || '新闻'}`);
+    comments.title = '使用 Chrome 打开 Hacker News 评论页';
+    comments.setAttribute('aria-label', `使用 Chrome 查看 Hacker News 评论：${item.titleZh || item.title || '新闻'}`);
     row.append(comments);
   }
   return row;
