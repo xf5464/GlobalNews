@@ -61,17 +61,41 @@ function ensureHnSubtabs() {
 }
 
 const baseItemButton = itemButton;
+
+function hackerNewsCommentsUrl(item) {
+  const sourceId = String(item?.sourceKey || '').match(/^hn(?:-front)?-(\d+)$/)?.[1];
+  if (sourceId) return `https://news.ycombinator.com/item?id=${sourceId}`;
+  try {
+    const url = new URL(item?.url || '');
+    if (url.hostname === 'news.ycombinator.com' && /^\d+$/.test(url.searchParams.get('id') || '')) return url.toString();
+  } catch {}
+  return '';
+}
+
 itemButton = function itemButtonWithHackerNewsStats(item, rank) {
   const row = baseItemButton(item, rank);
-  if (!['hn', 'hn-front'].includes(item.category) || !item.engagement) return row;
+  if (!['hn', 'hn-front'].includes(item.category)) return row;
   const details = row.querySelector('.news-details');
-  if (!details) return row;
-  const stats = document.createElement('span');
-  stats.className = 'news-views';
-  stats.textContent = ` · ${String(item.engagement)
-    .replace(/\bpoints?\b/gi, '分')
-    .replace(/\bcomments?\b/gi, '条评论')}`;
-  details.append(stats);
+  if (details && item.engagement) {
+    const stats = document.createElement('span');
+    stats.className = 'news-views';
+    stats.textContent = ` · ${String(item.engagement)
+      .replace(/\bpoints?\b/gi, '分')
+      .replace(/\bcomments?\b/gi, '条评论')}`;
+    details.append(stats);
+  }
+  const commentsUrl = hackerNewsCommentsUrl(item);
+  if (commentsUrl) {
+    const comments = document.createElement('a');
+    comments.className = 'hn-comments-link';
+    comments.href = commentsUrl;
+    comments.target = '_blank';
+    comments.rel = 'noopener noreferrer';
+    comments.textContent = '评论';
+    comments.title = '前往 Hacker News 评论页';
+    comments.setAttribute('aria-label', `查看 Hacker News 评论：${item.titleZh || item.title || '新闻'}`);
+    row.append(comments);
+  }
   return row;
 };
 

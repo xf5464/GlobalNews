@@ -83,6 +83,12 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
   font-size: 18px; font-weight: 760; text-decoration: none;
 }
 .safari-link:active { background: rgba(23, 92, 211, .12); }
+.hn-comments-link {
+  display: flex; align-items: center; justify-content: center; width: 46px; min-width: 46px; padding: 8px 4px;
+  border-left: 1px solid rgba(128, 119, 101, .13); color: #087443; background: rgba(236, 253, 243, .5);
+  font-size: 12px; font-weight: 760; text-decoration: none; white-space: nowrap;
+}
+.hn-comments-link:active { background: rgba(18, 183, 106, .13); }
 .rank { padding-top: 2px; color: var(--blue); font-size: 13px; font-weight: 760; }
 .news-title { display: block; font-family: ui-serif, "Songti SC", STSong, serif; font-size: 18px; font-weight: 700; line-height: 1.42; }
 .news-original { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }
@@ -149,6 +155,7 @@ article h2 { font-size: clamp(30px, 7vw, 45px); }
   .day-header { padding-inline: 17px; }
   .news-item { padding: 14px 8px 14px 15px; gap: 9px; }
   .safari-link { width: 40px; min-width: 40px; }
+  .hn-comments-link { width: 42px; min-width: 42px; }
   .category-tab { padding-inline: 5px; font-size: 13px; }
   .word-cloud-panel { padding: 8px; }
   .event-cloud { min-height: 470px; gap: 9px 10px; padding: 28px 12px; }
