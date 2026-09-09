@@ -92,6 +92,7 @@ async function refreshedOrCached(archive, category, fetcher, label) {
 
 async function main() {
   const archive = JSON.parse(fs.readFileSync(ARCHIVE_PATH, 'utf8'));
+  const refreshedAt = new Date().toISOString();
   const [hn, hnFront] = await Promise.all([
     refreshedOrCached(archive, 'hn', () => fetchHackerNewsTop10(), 'Hacker News current'),
     refreshedOrCached(archive, 'hn-front', () => fetchHackerNewsFront10(), 'Hacker News /front'),
@@ -100,8 +101,13 @@ async function main() {
     .filter((item) => item.category !== 'hn' && item.category !== 'hn-front')
     .concat(hn, hnFront);
   archive.trends = [];
-  archive.updatedAt = new Date().toISOString();
+  archive.updatedAt = refreshedAt;
   archive.refreshAttemptedAt = archive.updatedAt;
+  archive.categoryAttemptedAt = { ...(archive.categoryAttemptedAt || {}), hn: refreshedAt, 'hn-front': refreshedAt };
+  archive.categoryUpdatedAt = { ...(archive.categoryUpdatedAt || {}) };
+  if (hn.some((item) => !item.isCached)) archive.categoryUpdatedAt.hn = refreshedAt;
+  if (hnFront.some((item) => !item.isCached)) archive.categoryUpdatedAt['hn-front'] = refreshedAt;
+  archive.failureCount = archive.items.filter((item) => item.isCached).length;
   fs.writeFileSync(ARCHIVE_PATH, `${JSON.stringify(archive, null, 2)}\n`, 'utf8');
   console.log(`Saved Hacker News current Top 10: ${hn.length} stories; /front Top 10: ${hnFront.length} stories.`);
 }

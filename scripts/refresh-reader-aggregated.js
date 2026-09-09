@@ -5,6 +5,7 @@ const {
   addChineseTranslations,
   archivedTitleTranslations,
   decodeXml,
+  isLanguageNeutralTitle,
   isPaywalledItem,
   isSimilarTitle,
   parseRssItems,
@@ -17,6 +18,7 @@ const WORLD_WINDOW_HOURS = 48;
 const ITEMS_PER_SOURCE = 4;
 const WORLD_ITEMS_PER_SOURCE = 8;
 const CORROBORATION_ITEMS_PER_SOURCE = 6;
+const TOP_LIMIT = 10;
 
 const MARKET_AUTHORITY = new Map([
   ['guardian-business', 27], ['yahoo-finance', 27], ['cnbc-markets', 30], ['bbc-business', 28],
@@ -205,9 +207,52 @@ function augmentTechWithPaidCorroboration(tech, paidTech) {
     return { ...item, score: Math.round((Number(item.score || 0) + hiddenSourceCount * 34) * 10) / 10, engagement: `${sourceCount}家科技媒体交叉确认` };
   }).sort((a, b) => Number(b.score || 0) - Number(a.score || 0) || Date.parse(b.publishedAt || 0) - Date.parse(a.publishedAt || 0));
 }
+
+function categoryItems(archive, category) {
+  return (archive.items || [])
+    .filter((item) => item.category === category)
+    .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
+    .slice(0, TOP_LIMIT);
+}
+
+function isUsableCategory(items) {
+  return items.length === TOP_LIMIT && items.every((item) =>
+    item?.url && item?.title && (
+      /[\u3400-\u9fff]/.test(String(item.title || '')) ||
+      /[\u3400-\u9fff]/.test(String(item.titleZh || '')) ||
+      isLanguageNeutralTitle(item.title)
+    ));
+}
+
+function cachedFallback(items) {
+  return items.map((item) => ({ ...item, isCached: true }));
+}
+
+async function refreshCategory(category, previous, producer) {
+  try {
+    const items = await producer();
+    if (!isUsableCategory(items)) throw new Error(`${category} returned only ${items.length}/${TOP_LIMIT} complete translated items`);
+    return items;
+  } catch (error) {
+    if (!isUsableCategory(previous)) throw error;
+    console.warn(`${category} category refresh failed; kept its previous Top 10: ${error.message}`);
+    return cachedFallback(previous);
+  }
+}
+
 async function main() {
-  execFileSync(process.execPath, ['scripts/refresh-reader-news.js'], { stdio: 'inherit', env: process.env });
+  const originalArchive = JSON.parse(fs.readFileSync(ARCHIVE_PATH, 'utf8'));
+  let baseRefreshSucceeded = true;
+  try {
+    execFileSync(process.execPath, ['scripts/refresh-reader-news.js'], { stdio: 'inherit', env: process.env });
+  } catch (error) {
+    baseRefreshSucceeded = false;
+    console.warn(`Base technology/market refresh failed; category fallbacks remain available: ${error.message}`);
+  }
   const archive = JSON.parse(fs.readFileSync(ARCHIVE_PATH, 'utf8')); const now = Date.now();
+  const previousMarket = categoryItems(originalArchive, 'market');
+  const previousWorld = categoryItems(originalArchive, 'world');
+  const previousTech = categoryItems(originalArchive, 'tech');
   const existingMarket = (archive.items || []).filter((item) => item.category === 'market');
   const existingWorld = (archive.items || []).filter((item) => item.category === 'world');
   const existingTech = (archive.items || []).filter((item) => item.category === 'tech');
@@ -217,21 +262,40 @@ async function main() {
   ]);
 
   const marketPool = [...marketFree, ...paidMarket];
-  const marketClusters = rankClusters(marketPool, { category: 'market', authorityMap: MARKET_AUTHORITY, impactKeywords: MARKET_IMPACT, windowHours: MARKET_WINDOW_HOURS, now }).slice(0, 10);
-  let market = marketClusters.map((cluster, index) => ({ ...cluster.representative, category: 'market', sourceKey: `market-event-${index + 1}`, sourceOrder: index, score: cluster.score, engagement: cluster.sourceCount >= 2 ? `${cluster.sourceCount}家财经媒体交叉确认` : '单一来源', fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(now).toISOString(), isCached: false }));
-  market = await translateRepresentatives(market);
-
   const worldPool = [...worldFree, ...paidWorld];
-  const worldClusters = rankClusters(worldPool, { category: 'world', authorityMap: WORLD_AUTHORITY, impactKeywords: WORLD_IMPACT, windowHours: WORLD_WINDOW_HOURS, now, matcher: sameWorldEvent }).slice(0, 10);
-  let world = worldClusters.map((cluster, index) => ({ ...cluster.representative, category: 'world', sourceKey: `world-event-${index + 1}`, sourceOrder: index, score: cluster.score, engagement: cluster.sourceCount >= 2 ? `${cluster.sourceCount}家国际媒体交叉确认` : '单一来源', fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(now).toISOString(), isCached: false }));
-  world = await translateRepresentatives(world);
+  const [market, world] = await Promise.all([
+    refreshCategory('market', previousMarket, async () => {
+      const clusters = rankClusters(marketPool, { category: 'market', authorityMap: MARKET_AUTHORITY, impactKeywords: MARKET_IMPACT, windowHours: MARKET_WINDOW_HOURS, now }).slice(0, TOP_LIMIT);
+      const items = clusters.map((cluster, index) => ({ ...cluster.representative, category: 'market', sourceKey: `market-event-${index + 1}`, sourceOrder: index, score: cluster.score, engagement: cluster.sourceCount >= 2 ? `${cluster.sourceCount}家财经媒体交叉确认` : '单一来源', fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(now).toISOString(), isCached: false }));
+      return translateRepresentatives(items);
+    }),
+    refreshCategory('world', previousWorld, async () => {
+      const clusters = rankClusters(worldPool, { category: 'world', authorityMap: WORLD_AUTHORITY, impactKeywords: WORLD_IMPACT, windowHours: WORLD_WINDOW_HOURS, now, matcher: sameWorldEvent }).slice(0, TOP_LIMIT);
+      const items = clusters.map((cluster, index) => ({ ...cluster.representative, category: 'world', sourceKey: `world-event-${index + 1}`, sourceOrder: index, score: cluster.score, engagement: cluster.sourceCount >= 2 ? `${cluster.sourceCount}家国际媒体交叉确认` : '单一来源', fetchedAt: new Date(now).toISOString(), sourceUpdatedAt: new Date(now).toISOString(), isCached: false }));
+      return translateRepresentatives(items);
+    }),
+  ]);
 
-  const tech = augmentTechWithPaidCorroboration(existingTech, paidTech);
+  const candidateTech = baseRefreshSucceeded ? augmentTechWithPaidCorroboration(existingTech, paidTech) : [];
+  const tech = isUsableCategory(candidateTech) ? candidateTech : cachedFallback(previousTech);
+  if (!isUsableCategory(candidateTech)) console.warn('tech category refresh failed; kept its previous Top 10.');
+  if (!isUsableCategory(tech)) throw new Error(`tech has no complete ${TOP_LIMIT}-item fallback`);
+  const refreshedAt = new Date(now).toISOString();
   archive.items = (archive.items || []).filter((item) => !['tech', 'market', 'world'].includes(item.category)).concat(tech, market, world);
-  archive.updatedAt = new Date(now).toISOString(); archive.refreshAttemptedAt = archive.updatedAt;
+  archive.updatedAt = refreshedAt; archive.refreshAttemptedAt = refreshedAt;
+  archive.categoryAttemptedAt = { ...(originalArchive.categoryAttemptedAt || {}), tech: refreshedAt, market: refreshedAt, world: refreshedAt };
+  archive.categoryUpdatedAt = { ...(originalArchive.categoryUpdatedAt || {}) };
+  for (const [category, items] of Object.entries({ tech, market, world })) {
+    if (items.some((item) => !item.isCached)) archive.categoryUpdatedAt[category] = refreshedAt;
+  }
+  archive.failureCount = archive.items.filter((item) => item.isCached).length;
   fs.writeFileSync(ARCHIVE_PATH, `${JSON.stringify(archive, null, 2)}\n`, 'utf8');
   console.log(`Event aggregation complete: tech=${tech.length} (+${paidTech.length} hidden corroborators), market=${market.length}/${marketPool.length} candidates, world=${world.length}/${worldPool.length} candidates.`);
   console.log('Reuters and all configured paywalled sources are corroboration-only and cannot be displayed as representative links.');
 }
 
-main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
+if (require.main === module) {
+  main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
+}
+
+module.exports = { cachedFallback, isUsableCategory, refreshCategory };

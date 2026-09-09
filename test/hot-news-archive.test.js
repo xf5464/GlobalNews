@@ -78,3 +78,14 @@ test('preserves independently refreshed Hacker News categories', () => {
   }, Date.parse('2026-09-04T03:00:00Z'));
   assert.deepEqual(archive.items.map((entry) => entry.category).sort(), ['hn', 'hn-front', 'tech']);
 });
+
+test('preserves per-category attempt and success timestamps', () => {
+  const archive = pruneArchive({
+    schemaVersion: 2,
+    categoryAttemptedAt: { youtube: '2026-09-04T03:00:00Z' },
+    categoryUpdatedAt: { youtube: '2026-09-04T01:00:00Z' },
+    items: [],
+  });
+  assert.equal(archive.categoryAttemptedAt.youtube, '2026-09-04T03:00:00Z');
+  assert.equal(archive.categoryUpdatedAt.youtube, '2026-09-04T01:00:00Z');
+});

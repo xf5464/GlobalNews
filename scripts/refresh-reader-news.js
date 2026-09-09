@@ -332,6 +332,7 @@ async function collectSection(category, now, previousBySource, baselineBySource,
 async function main() {
   const archivePath = String(process.env.HOT_NEWS_ARCHIVE_PATH || 'site/data/recent.json').trim(); const now = Date.now();
   const knownTranslations = archivedTitleTranslations(archivePath); const knownGoogleNewsUrls = archivedGoogleNewsUrls(archivePath); const previousBySource = archivedSourceItems(archivePath);
+  const skipYouTube = environmentFlag(process.env.HOT_NEWS_SKIP_YOUTUBE);
   const baseline = await collectHotNews(0, now, knownTranslations, knownGoogleNewsUrls, previousBySource);
   const baselineBySource = new Map([...(baseline.tech || []), ...(baseline.market || []), ...(baseline.world || []), ...(baseline.youtube || [])].filter((item) => item.sourceKey).map((item) => [item.sourceKey, item]));
   const [tech, market] = await Promise.all([
@@ -339,7 +340,12 @@ async function main() {
     collectSection('market', now, previousBySource, baselineBySource, knownTranslations),
   ]);
   const world = (baseline.world || []).map((item) => normalizeBaselineFreshness(item, now)).map(polishChineseTitle);
-  const youtube = (baseline.youtube || []).map((item) => normalizeBaselineFreshness(item, now)).map(polishChineseTitle);
+  const youtube = skipYouTube
+    ? [...previousBySource.values()]
+      .filter((item) => item.category === 'youtube')
+      .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
+      .slice(0, 10)
+    : (baseline.youtube || []).map((item) => normalizeBaselineFreshness(item, now)).map(polishChineseTitle);
   let trends = baseline.trends || [];
   try { trends = (await collectSocialWordCloud([...tech, ...market, ...world], now)).trends; }
   catch (error) { console.warn(`Event cloud refresh failed; kept the baseline cloud: ${error.message}`); }

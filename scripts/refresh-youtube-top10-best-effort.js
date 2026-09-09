@@ -10,6 +10,7 @@ const ARCHIVE_PATH = String(process.env.HOT_NEWS_ARCHIVE_PATH || 'site/data/rece
 const API_KEY = String(process.env.YOUTUBE_API_KEY || '').trim();
 const LOOKBACK_HOURS = 24;
 const MAX_ITEMS = 10;
+const REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const YOUTUBE_QUERY = '"artificial intelligence"|"technology news"|"stock market"|"Wall Street"|Nvidia|Tesla -movie -film -trailer -music';
 
 function containsChinese(value) {
@@ -25,69 +26,99 @@ async function fetchJson(url, timeout = 15000) {
   return response.json();
 }
 
-async function main() {
-  if (!API_KEY) throw new Error('Missing required environment variable: YOUTUBE_API_KEY');
+function latestYoutubeTimestamp(archive) {
+  const recorded = Date.parse(archive?.categoryAttemptedAt?.youtube || archive?.categoryUpdatedAt?.youtube || '');
+  if (Number.isFinite(recorded)) return recorded;
+  const timestamps = (archive?.items || [])
+    .filter((item) => item.category === 'youtube')
+    .flatMap((item) => [Date.parse(item.sourceUpdatedAt || ''), Date.parse(item.fetchedAt || '')])
+    .filter(Number.isFinite);
+  return timestamps.length ? Math.max(...timestamps) : 0;
+}
 
+function shouldRefreshYouTube(archive, now = Date.now()) {
+  const previous = latestYoutubeTimestamp(archive);
+  return !previous || now - previous >= REFRESH_INTERVAL_MS;
+}
+
+function writeArchive(archive) {
+  fs.writeFileSync(ARCHIVE_PATH, `${JSON.stringify(archive, null, 2)}\n`, 'utf8');
+}
+
+async function main() {
   const archive = JSON.parse(fs.readFileSync(ARCHIVE_PATH, 'utf8'));
   const previousYoutube = (archive.items || []).filter((item) => item.category === 'youtube');
-  const knownTranslations = new Map(previousYoutube.filter((item) => item.url && item.titleZh).map((item) => [item.url, item.titleZh]));
   const now = Date.now();
-  const publishedAfter = new Date(now - LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
+  if (!shouldRefreshYouTube(archive, now)) {
+    const nextAt = new Date(latestYoutubeTimestamp(archive) + REFRESH_INTERVAL_MS).toISOString();
+    console.log(`Skipped YouTube refresh; next four-hour attempt is due at ${nextAt}.`);
+    return;
+  }
 
-  const searchParams = new URLSearchParams({
-    part: 'snippet', type: 'video', maxResults: '50', order: 'viewCount',
-    q: YOUTUBE_QUERY, publishedAfter, regionCode: 'US', relevanceLanguage: 'en',
-    safeSearch: 'moderate', key: API_KEY,
-  });
-  const searchPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/search?${searchParams}`);
-  const videoIds = (searchPayload.items || []).map((item) => item?.id?.videoId).filter(Boolean);
-  if (!videoIds.length) throw new Error('YouTube returned no recent videos.');
-
-  const videoParams = new URLSearchParams({
-    part: 'snippet,statistics', id: videoIds.join(','), maxResults: '50', key: API_KEY,
-  });
-  const videosPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/videos?${videoParams}`);
-  const items = youtubeItemsFromResponses(searchPayload, videosPayload).slice(0, 25);
-  if (items.length < MAX_ITEMS) throw new Error(`YouTube returned only ${items.length}/${MAX_ITEMS} usable videos.`);
-
-  const attempted = await addChineseTranslations(items.map((item) => ({
-    ...item,
-    titleZh: knownTranslations.get(item.url) || '',
-  })), 450, { strict: false });
-  const translated = attempted.filter((item) =>
-    containsChinese(item.title) ||
-    containsChinese(item.titleZh) ||
-    isLanguageNeutralTitle(item.title));
-  const fetchedAt = new Date(now).toISOString();
+  const attemptedAt = new Date(now).toISOString();
+  archive.categoryAttemptedAt = { ...(archive.categoryAttemptedAt || {}), youtube: attemptedAt };
+  const knownTranslations = new Map(previousYoutube.filter((item) => item.url && item.titleZh).map((item) => [item.url, item.titleZh]));
   let freshYoutube;
-  if (translated.length < MAX_ITEMS) {
-    const translatedPrevious = previousYoutube
-      .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh))
-      .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
-      .slice(0, MAX_ITEMS);
-    if (translatedPrevious.length !== MAX_ITEMS) {
-      throw new Error(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated from ${attempted.length} candidates, without a complete fallback.`);
+  let refreshed = false;
+  try {
+    if (!API_KEY) throw new Error('Missing required environment variable: YOUTUBE_API_KEY');
+    const publishedAfter = new Date(now - LOOKBACK_HOURS * 60 * 60 * 1000).toISOString();
+    const searchParams = new URLSearchParams({
+      part: 'snippet', type: 'video', maxResults: '50', order: 'viewCount',
+      q: YOUTUBE_QUERY, publishedAfter, regionCode: 'US', relevanceLanguage: 'en',
+      safeSearch: 'moderate', key: API_KEY,
+    });
+    const searchPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/search?${searchParams}`);
+    const videoIds = (searchPayload.items || []).map((item) => item?.id?.videoId).filter(Boolean);
+    if (!videoIds.length) throw new Error('YouTube returned no recent videos.');
+
+    const videoParams = new URLSearchParams({
+      part: 'snippet,statistics', id: videoIds.join(','), maxResults: '50', key: API_KEY,
+    });
+    const videosPayload = await fetchJson(`https://www.googleapis.com/youtube/v3/videos?${videoParams}`);
+    const items = youtubeItemsFromResponses(searchPayload, videosPayload).slice(0, 25);
+    if (items.length < MAX_ITEMS) throw new Error(`YouTube returned only ${items.length}/${MAX_ITEMS} usable videos.`);
+
+    const attempted = await addChineseTranslations(items.map((item) => ({
+      ...item,
+      titleZh: knownTranslations.get(item.url) || '',
+    })), 450, { strict: false });
+    const translated = attempted.filter((item) =>
+      containsChinese(item.title) ||
+      containsChinese(item.titleZh) ||
+      isLanguageNeutralTitle(item.title));
+    if (translated.length < MAX_ITEMS) {
+      throw new Error(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated from ${attempted.length} candidates.`);
     }
-    freshYoutube = translatedPrevious.map((item) => ({ ...item, isCached: true }));
-    console.warn(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated; reused the previous translated Top 10.`);
-  } else {
     freshYoutube = translated.slice(0, MAX_ITEMS).map((item, index) => ({
       ...item,
       sourceOrder: index,
       id: itemId(item.url),
-      fetchedAt,
-      sourceUpdatedAt: fetchedAt,
+      fetchedAt: attemptedAt,
+      sourceUpdatedAt: attemptedAt,
       isCached: false,
     }));
+    refreshed = true;
+  } catch (error) {
+    const translatedPrevious = previousYoutube
+      .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh) || isLanguageNeutralTitle(item.title))
+      .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
+      .slice(0, MAX_ITEMS);
+    if (translatedPrevious.length !== MAX_ITEMS) throw error;
+    freshYoutube = translatedPrevious.map((item) => ({ ...item, isCached: true }));
+    console.warn(`YouTube four-hour refresh failed; kept the previous Top 10: ${error.message}`);
   }
 
-  const hadCachedYoutubeFallback = previousYoutube.length === MAX_ITEMS && previousYoutube.every((item) => item.isCached);
   archive.items = [...(archive.items || []).filter((item) => item.category !== 'youtube'), ...freshYoutube];
-  if (hadCachedYoutubeFallback && Number(archive.failureCount) > 0) archive.failureCount = Number(archive.failureCount) - 1;
-  archive.updatedAt = fetchedAt;
-  archive.refreshAttemptedAt = fetchedAt;
-  fs.writeFileSync(ARCHIVE_PATH, `${JSON.stringify(archive, null, 2)}\n`, 'utf8');
-  console.log('Saved YouTube Top 10; all displayed titles have Chinese translations.');
+  archive.updatedAt = attemptedAt;
+  archive.refreshAttemptedAt = attemptedAt;
+  archive.categoryUpdatedAt = { ...(archive.categoryUpdatedAt || {}) };
+  if (refreshed) archive.categoryUpdatedAt.youtube = attemptedAt;
+  archive.failureCount = archive.items.filter((item) => item.isCached).length;
+  writeArchive(archive);
+  console.log(refreshed
+    ? 'Saved YouTube Top 10; all displayed titles have Chinese translations.'
+    : 'Published other categories with the previous YouTube Top 10.');
 }
 
 if (require.main === module) {
@@ -96,3 +127,5 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
+
+module.exports = { REFRESH_INTERVAL_MS, latestYoutubeTimestamp, shouldRefreshYouTube };

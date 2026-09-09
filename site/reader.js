@@ -60,6 +60,8 @@ function pruneArchive(value) {
     schemaVersion: 2,
     updatedAt: value?.updatedAt || null,
     refreshAttemptedAt: value?.refreshAttemptedAt || value?.updatedAt || null,
+    categoryUpdatedAt: value?.categoryUpdatedAt && typeof value.categoryUpdatedAt === 'object' ? { ...value.categoryUpdatedAt } : {},
+    categoryAttemptedAt: value?.categoryAttemptedAt && typeof value.categoryAttemptedAt === 'object' ? { ...value.categoryAttemptedAt } : {},
     failureCount: Number(value?.failureCount) || 0,
     items: [...bySource.values()],
     trends: Array.isArray(value?.trends) ? value.trends.slice(0, 30) : [],
@@ -138,8 +140,8 @@ function categoryFreshness(items, fromCache) {
   const cachedItems = items.filter((item) => item.isCached);
   if (fromCache) return `网络加载失败 · 当前显示本地缓存 · 缓存时间 ${publishedTimeLabel(latestSourceTime)}`;
   if (items.length && cachedItems.length === items.length) return `本次抓取失败 · 当前显示缓存数据 · 缓存时间 ${publishedTimeLabel(latestSourceTime)}`;
-  if (cachedItems.length) return `${updatedTimeLabel(archive.updatedAt)} · ${cachedItems.length}条来源使用旧缓存`;
-  return updatedTimeLabel(archive.updatedAt);
+  if (cachedItems.length) return `${updatedTimeLabel(latestSourceTime)} · ${cachedItems.length}条来源使用旧缓存`;
+  return updatedTimeLabel(latestSourceTime);
 }
 
 function renderEventCloud(trends) {

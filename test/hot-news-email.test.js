@@ -51,6 +51,20 @@ test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
   assert.doesNotMatch(workflow, /^\s+schedule:/m);
 });
 
+test("refreshes categories independently and keeps YouTube on a four-hour cadence", () => {
+  const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  const orchestrator = fs.readFileSync("scripts/refresh-categories-independent.js", "utf8");
+  const collector = fs.readFileSync("scripts/send-hot-news-email.js", "utf8");
+  const youtube = fs.readFileSync("scripts/refresh-youtube-top10-best-effort.js", "utf8");
+  const reader = fs.readFileSync("site/reader.js", "utf8");
+  assert.equal(packageJson.scripts.refresh, "node scripts/refresh-categories-independent.js");
+  assert.match(orchestrator, /continuing so the other categories can still update/);
+  assert.match(orchestrator, /HOT_NEWS_SKIP_YOUTUBE: 'true'/);
+  assert.match(collector, /HOT_NEWS_SKIP_YOUTUBE/);
+  assert.match(youtube, /4 \* 60 \* 60 \* 1000/);
+  assert.match(reader, /return updatedTimeLabel\(latestSourceTime\)/);
+});
+
 test("takes a publisher homepage lead instead of a Google News search result", () => {
   const source = { name: "Example", hosts: ["example.com"], articlePattern: "^/news/" };
   const markdown = `[Markets](https://example.com/markets/)\n[Current lead story from the publisher](https://www.example.com/news/current-lead)\n[Older story](https://example.com/news/older)`;

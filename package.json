@@ -5,7 +5,7 @@
   "description": "Static global news reader for GitHub Pages.",
   "scripts": {
     "build": "node scripts/build.js",
-    "refresh": "node scripts/refresh-reader-aggregated.js && node scripts/refresh-youtube-top10-best-effort.js && node scripts/resolve-world-original-urls.js && node scripts/add-hacker-news-top10.js && node scripts/verify-reader-refresh.js",
+    "refresh": "node scripts/refresh-categories-independent.js",
     "test": "npm run build && node --test && node --check site/reader.js && node --check site/reader-hn.js && node --check site/service-worker.js && node --check scripts/build.js"
   },
   "engines": {

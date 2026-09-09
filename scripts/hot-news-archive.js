@@ -7,7 +7,16 @@ function itemId(url) {
 }
 
 function emptyArchive() {
-  return { schemaVersion: 2, updatedAt: null, refreshAttemptedAt: null, items: [], trends: [], failureCount: 0 };
+  return {
+    schemaVersion: 2,
+    updatedAt: null,
+    refreshAttemptedAt: null,
+    categoryUpdatedAt: {},
+    categoryAttemptedAt: {},
+    items: [],
+    trends: [],
+    failureCount: 0,
+  };
 }
 
 function normalizeTrend(trend) {
@@ -56,6 +65,12 @@ function pruneArchive(archive) {
     schemaVersion: 2,
     updatedAt: archive?.updatedAt || null,
     refreshAttemptedAt: archive?.refreshAttemptedAt || archive?.updatedAt || null,
+    categoryUpdatedAt: archive?.categoryUpdatedAt && typeof archive.categoryUpdatedAt === 'object'
+      ? { ...archive.categoryUpdatedAt }
+      : {},
+    categoryAttemptedAt: archive?.categoryAttemptedAt && typeof archive.categoryAttemptedAt === 'object'
+      ? { ...archive.categoryAttemptedAt }
+      : {},
     failureCount: Number(archive?.failureCount) || 0,
     items: [...bySource.values()].sort((left, right) =>
       String(left.category).localeCompare(String(right.category)) || left.sourceOrder - right.sourceOrder),
@@ -82,6 +97,8 @@ function mergeNews(archive, news, now = Date.now(), shouldKeepItem = () => true)
     schemaVersion: 2,
     updatedAt: refreshAttemptedAt,
     refreshAttemptedAt,
+    categoryUpdatedAt: archive?.categoryUpdatedAt,
+    categoryAttemptedAt: archive?.categoryAttemptedAt,
     failureCount: Number(news.failureCount) || items.filter((item) => item.isCached).length,
     items,
     trends: incomingTrends.length ? incomingTrends : previousTrends,

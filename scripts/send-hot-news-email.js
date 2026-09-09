@@ -774,14 +774,18 @@ async function collectHotNews(
     translateWithSnapshotFallback(resolvedTech.items.sort((a, b) => a.sourceOrder - b.sourceOrder), "tech"),
     translateWithSnapshotFallback(resolvedMarket.items.sort((a, b) => a.sourceOrder - b.sourceOrder), "market"),
   ]);
+  const previousYoutube = [...knownSourceItems.values()]
+    .filter((item) => item.category === "youtube")
+    .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
+    .slice(0, MAX_ITEMS);
   let youtube;
-  try {
+  if (environmentFlag(process.env.HOT_NEWS_SKIP_YOUTUBE)) {
+    youtube = previousYoutube;
+    console.log("Skipped YouTube during the general news refresh; the independent four-hour refresh owns this category.");
+  } else try {
     youtube = await fetchYouTubeTop(String(process.env.YOUTUBE_API_KEY || "").trim(), now);
   } catch (error) {
-    const previous = [...knownSourceItems.values()]
-      .filter((item) => item.category === "youtube")
-      .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
-      .slice(0, MAX_ITEMS);
+    const previous = previousYoutube;
     if (previous.length !== MAX_ITEMS) throw error;
     failureCount += 1;
     youtube = previous;
