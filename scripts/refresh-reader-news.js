@@ -177,9 +177,8 @@ async function publishedAtForLead(lead, source, category, now) {
 function freshMetadata(item, now) { const stamp = new Date(now).toISOString(); return { ...item, fetchedAt: stamp, sourceUpdatedAt: stamp, isCached: false }; }
 function cachedMetadata(item) { const stamp = item?.sourceUpdatedAt || item?.fetchedAt || item?.pushedAt || ''; return { ...item, fetchedAt: item?.fetchedAt || stamp, sourceUpdatedAt: stamp, isCached: true }; }
 function normalizeBaselineFreshness(item, now) { return item?.fetchedAt || item?.sourceUpdatedAt ? cachedMetadata(item) : freshMetadata(item, now); }
-function containsChinese(value) { return /[\u3400-\u9fff]/.test(String(value || '')); }
 function polishChineseTitle(item) {
-  let titleZh = decodeXml(String(item.titleZh || item.title || '')).trim()
+  let titleZh = decodeXml(String(item.titleZh || '')).trim()
     .replace(/\s+([，。！？：；、）】》])/g, '$1').replace(/([（【《])\s+/g, '$1').replace(/\s{2,}/g, ' ')
     .replace(/(\d+(?:\.\d+)?)\s*\$/g, '$$$1').replace(/\$\s+(\d)/g, '$$$1')
     .replace(/\s*(?:26年)?9月6日发布\s*$/i, '').replace(/\s*发布于?\s*\d{1,2}月\d{1,2}日\s*$/i, '');
@@ -196,28 +195,7 @@ async function translateItems(items, knownTranslations, previousBySource, baseli
     titleZh: knownTranslations.get(item.url) || knownTranslations.get(item.googleNewsUrl) || item.titleZh || '',
   }));
   const translatedItems = await addChineseTranslations(prepared, 450, { strict: false });
-  const output = translatedItems.flatMap((translated, index) => {
-    if (containsChinese(translated.titleZh) || containsChinese(translated.title)) return [polishChineseTitle(translated)];
-    const item = items[index];
-    const fallback = previousBySource.get(item.sourceKey) || baselineBySource.get(item.sourceKey);
-    if (fallback && containsChinese(fallback.titleZh) && isAcceptableHeadline(item.category, fallback.title, fallback.url)) {
-      console.warn(`${item.source} translation failed; kept its previous translated headline as explicit cache.`);
-      return [polishChineseTitle(cachedMetadata({ ...fallback, category: item.category, source: item.source, sourceKey: item.sourceKey, sourceOrder: item.sourceOrder }))];
-    }
-    console.warn(`${item.source} translation failed and no translated fallback was usable; source omitted.`);
-    return [];
-  });
-  if (output.length === 10) return output;
-  const category = items[0]?.category;
-  const previous = [...previousBySource.values()]
-    .filter((item) => item.category === category && (containsChinese(item.title) || containsChinese(item.titleZh)))
-    .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
-    .slice(0, 10);
-  if (previous.length === 10) {
-    console.warn(`${category} refresh produced only ${output.length}/10 translated items; reused the previous translated Top 10.`);
-    return previous.map((item) => polishChineseTitle(cachedMetadata(item)));
-  }
-  return output;
+  return translatedItems.map(polishChineseTitle);
 }
 
 function techTokens(title) {

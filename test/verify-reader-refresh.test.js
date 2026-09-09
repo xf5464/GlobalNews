@@ -30,13 +30,21 @@ test('accepts a complete cached category so other categories can still publish',
   assert.equal(verifyReaderRefresh(value, now), true);
 });
 
-test('accepts an older category but still rejects untranslated titles', () => {
+test('accepts an untranslated title after translation was attempted', () => {
   const value = archive();
   const item = value.items.find((entry) => entry.category === 'youtube');
   item.fetchedAt = '2026-09-08T02:00:00Z';
   item.sourceUpdatedAt = item.fetchedAt;
   item.titleZh = '';
-  assert.throws(() => verifyReaderRefresh(value, now), /youtube: 1\/10 untranslated titles/);
+  assert.equal(verifyReaderRefresh(value, now), true);
+});
+
+test('allows untranslated titles in every category instead of retaining the previous Top 10', () => {
+  for (const category of REQUIRED_CATEGORIES) {
+    const value = archive();
+    value.items.find((item) => item.category === category).titleZh = '';
+    assert.equal(verifyReaderRefresh(value, now), true);
+  }
 });
 
 test('rejects a category without a complete Top 10 fallback', () => {

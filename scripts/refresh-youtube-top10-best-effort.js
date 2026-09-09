@@ -2,7 +2,6 @@ const fs = require('node:fs');
 const { itemId } = require('./hot-news-archive');
 const {
   addChineseTranslations,
-  isLanguageNeutralTitle,
   youtubeItemsFromResponses,
 } = require('./send-hot-news-email');
 
@@ -12,10 +11,6 @@ const LOOKBACK_HOURS = 24;
 const MAX_ITEMS = 10;
 const REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const YOUTUBE_QUERY = '"artificial intelligence"|"technology news"|"stock market"|"Wall Street"|Nvidia|Tesla -movie -film -trailer -music';
-
-function containsChinese(value) {
-  return /[\u3400-\u9fff]/.test(String(value || ''));
-}
 
 async function fetchJson(url, timeout = 15000) {
   const response = await fetch(url, {
@@ -83,14 +78,7 @@ async function main() {
       ...item,
       titleZh: knownTranslations.get(item.url) || '',
     })), 450, { strict: false });
-    const translated = attempted.filter((item) =>
-      containsChinese(item.title) ||
-      containsChinese(item.titleZh) ||
-      isLanguageNeutralTitle(item.title));
-    if (translated.length < MAX_ITEMS) {
-      throw new Error(`Only ${translated.length}/${MAX_ITEMS} YouTube titles translated from ${attempted.length} candidates.`);
-    }
-    freshYoutube = translated.slice(0, MAX_ITEMS).map((item, index) => ({
+    freshYoutube = attempted.slice(0, MAX_ITEMS).map((item, index) => ({
       ...item,
       sourceOrder: index,
       id: itemId(item.url),
@@ -101,7 +89,6 @@ async function main() {
     refreshed = true;
   } catch (error) {
     const translatedPrevious = previousYoutube
-      .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh) || isLanguageNeutralTitle(item.title))
       .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
       .slice(0, MAX_ITEMS);
     if (translatedPrevious.length !== MAX_ITEMS) throw error;
@@ -117,7 +104,7 @@ async function main() {
   archive.failureCount = archive.items.filter((item) => item.isCached).length;
   writeArchive(archive);
   console.log(refreshed
-    ? 'Saved YouTube Top 10; all displayed titles have Chinese translations.'
+    ? 'Saved YouTube Top 10 after attempting title translation.'
     : 'Published other categories with the previous YouTube Top 10.');
 }
 

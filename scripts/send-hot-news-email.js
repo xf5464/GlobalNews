@@ -647,13 +647,9 @@ async function fetchYouTubeTop(apiKey, now = Date.now(), fetcher = fetch) {
   if (candidates.length < MAX_ITEMS) throw new Error(`YouTube returned only ${candidates.length}/${MAX_ITEMS} usable videos.`);
   const attempted = await addChineseTranslations(candidates, 450, { strict: false });
   const translated = attempted
-    .filter((item) => containsChinese(item.title) || containsChinese(item.titleZh) || isLanguageNeutralTitle(item.title))
     .slice(0, MAX_ITEMS)
     .map((item, index) => ({ ...item, sourceOrder: index }));
-  if (translated.length < MAX_ITEMS) {
-    throw new Error(`YouTube returned only ${translated.length}/${MAX_ITEMS} translated videos from ${candidates.length} candidates.`);
-  }
-  return assertChineseTranslations(translated);
+  return translated;
 }
 
 function archivedItems(filePath) {
@@ -703,7 +699,7 @@ async function fetchWorldTop(now, knownTranslations, knownGoogleNewsUrls) {
   const translated = await addChineseTranslations(free.map((item) => ({
     ...item,
     titleZh: knownTranslations.get(item.url) || knownTranslations.get(item.googleNewsUrl) || "",
-  })));
+  })), 450, { strict: false });
   return { items: translated, failureCount: failures.length, resolvedCount: resolved.resolvedCount };
 }
 
@@ -758,17 +754,7 @@ async function collectHotNews(
     titleZh: knownTranslations.get(item.url) || knownTranslations.get(item.googleNewsUrl) || "",
   }));
   const translateWithSnapshotFallback = async (items, category) => {
-    const attempted = await addChineseTranslations(reuseTranslations(items), 450, { strict: false });
-    const missing = attempted.filter((item) => !containsChinese(item.title) && !containsChinese(item.titleZh));
-    if (!missing.length) return attempted;
-    const previous = [...knownSourceItems.values()]
-      .filter((item) => item.category === category && (containsChinese(item.title) || containsChinese(item.titleZh)))
-      .sort((left, right) => Number(left.sourceOrder) - Number(right.sourceOrder))
-      .slice(0, MAX_ITEMS);
-    if (previous.length !== MAX_ITEMS) return assertChineseTranslations(attempted);
-    failureCount += 1;
-    console.warn(`${category} title translation failed for ${missing.length} item(s); reused the previous translated Top 10.`);
-    return previous;
+    return addChineseTranslations(reuseTranslations(items), 450, { strict: false });
   };
   const [tech, market] = await Promise.all([
     translateWithSnapshotFallback(resolvedTech.items.sort((a, b) => a.sourceOrder - b.sourceOrder), "tech"),

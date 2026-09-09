@@ -109,7 +109,8 @@ function itemButton(item, rank) {
   const number = document.createElement('span'); number.className = 'rank'; number.textContent = String(rank);
   const copy = document.createElement('span'); copy.className = 'news-copy';
   const translated = document.createElement('span'); translated.className = 'news-title'; translated.textContent = item.titleZh || item.title || '未命名新闻';
-  const original = document.createElement('span'); original.className = 'news-original'; original.textContent = item.title || '';
+  const original = document.createElement('span'); original.className = 'news-original';
+  original.textContent = item.titleZh && item.titleZh !== item.title ? (item.title || '') : '';
   copy.append(translated, original);
   if ((item.category === 'world' || item.category === 'tech') && item.engagement) { const note = document.createElement('span'); note.className = 'news-note'; note.textContent = item.engagement; copy.append(note); }
   const details = document.createElement('span'); details.className = 'news-details';

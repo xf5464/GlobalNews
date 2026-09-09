@@ -1,14 +1,9 @@
 'use strict';
 
 const fs = require('node:fs');
-const { isLanguageNeutralTitle } = require('./send-hot-news-email');
 
 const REQUIRED_CATEGORIES = ['tech', 'market', 'world', 'youtube', 'hn', 'hn-front'];
 const EXPECTED_ITEMS = 10;
-
-function containsChinese(value) {
-  return /[\u3400-\u9fff]/.test(String(value || ''));
-}
 
 function verifyReaderRefresh(archive) {
   const failures = [];
@@ -20,11 +15,6 @@ function verifyReaderRefresh(archive) {
     }
     const incomplete = items.filter((item) => !item.url || !item.title);
     if (incomplete.length) failures.push(`${category}: ${incomplete.length}/${EXPECTED_ITEMS} incomplete items`);
-    const untranslated = items.filter((item) =>
-      !containsChinese(item.title) &&
-      !containsChinese(item.titleZh) &&
-      !isLanguageNeutralTitle(item.title));
-    if (untranslated.length) failures.push(`${category}: ${untranslated.length}/${EXPECTED_ITEMS} untranslated titles`);
   }
   if (failures.length) throw new Error(`Reader refresh is incomplete; refusing to publish: ${failures.join('; ')}`);
   return true;
@@ -38,7 +28,7 @@ function main() {
     const items = (archive.items || []).filter((item) => item.category === category);
     return items.length === EXPECTED_ITEMS && items.every((item) => item.isCached);
   });
-  console.log(`Verified publishable reader snapshot: ${REQUIRED_CATEGORIES.length} categories x ${EXPECTED_ITEMS} complete Chinese items.${cachedCategories.length ? ` Retained previous data for: ${cachedCategories.join(', ')}.` : ''}`);
+  console.log(`Verified publishable reader snapshot: ${REQUIRED_CATEGORIES.length} categories x ${EXPECTED_ITEMS} complete items.${cachedCategories.length ? ` Retained previous data for: ${cachedCategories.join(', ')}.` : ''}`);
 }
 
 if (require.main === module) {

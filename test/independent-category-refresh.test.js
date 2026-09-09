@@ -34,3 +34,9 @@ test('uses a complete newly refreshed category', async () => {
   assert.equal(result.every((item) => !item.isCached), true);
   assert.equal(result[0].sourceUpdatedAt, '2026-09-09T02:00:00Z');
 });
+
+test('an untranslated item is still a usable refreshed category item', () => {
+  const fresh = items('world');
+  fresh[0].titleZh = '';
+  assert.equal(isUsableCategory(fresh), true);
+});

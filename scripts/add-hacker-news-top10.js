@@ -47,7 +47,7 @@ async function fetchStoriesByIds(ids, category, now = Date.now()) {
     .slice(0, TOP_LIMIT)
     .map((item, index) => storyToItem(item, index, category, now));
   if (stories.length < TOP_LIMIT) throw new Error(`Hacker News returned only ${stories.length}/${TOP_LIMIT} usable ${category} stories.`);
-  return addChineseTranslations(stories);
+  return addChineseTranslations(stories, 450, { strict: false });
 }
 
 async function fetchHackerNewsTop10(now = Date.now()) {
