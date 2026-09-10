@@ -166,12 +166,10 @@ selectCategory = function selectCategory(category) {
 
 const SWIPE_MIN_DISTANCE = 48;
 const SWIPE_DIRECTION_DOMINANCE = 1.25;
-const PAGE_TURN_OUT_MS = 140;
-const PAGE_TURN_IN_MS = 230;
-const PAGE_TURN_CLASSES = [
-  'page-turn-next-out', 'page-turn-next-in',
-  'page-turn-previous-out', 'page-turn-previous-in',
-];
+const PAGE_TURN_MS = 420;
+const PAGE_TURN_STORAGE_KEY = 'globalnews-reader-page-turn';
+const pageTurnToggle = document.querySelector('#pageTurnToggle');
+let pageTurnEnabled = localStorage.getItem(PAGE_TURN_STORAGE_KEY) !== 'off';
 let pageTurnInProgress = false;
 
 function swipePages() {
@@ -186,14 +184,31 @@ function swipePages() {
   });
 }
 
-function waitForPageTurn(className, duration) {
-  refs.days.classList.add(className);
-  return new Promise((resolve) => {
-    window.setTimeout(() => {
-      refs.days.classList.remove(className);
-      resolve();
-    }, duration);
-  });
+function updatePageTurnToggle() {
+  pageTurnToggle?.setAttribute('aria-checked', String(pageTurnEnabled));
+  if (pageTurnToggle) {
+    pageTurnToggle.title = pageTurnEnabled ? '关闭翻页效果' : '开启翻页效果';
+    pageTurnToggle.setAttribute('aria-label', pageTurnToggle.title);
+  }
+}
+
+function showSwipeTarget(target) {
+  activeCategory = target.category;
+  localStorage.setItem('globalnews-reader-category', activeCategory);
+  if (target.category === 'hn') {
+    activeHnView = target.hnView;
+    localStorage.setItem('globalnews-reader-hn-view', activeHnView);
+  }
+  renderArchive(archive, archiveLoadedFromCache);
+  if (!selectedItems(archive).length) loadArchive();
+}
+
+function cloneCurrentPage() {
+  const sheet = document.createElement('div');
+  sheet.className = 'page-turn-sheet';
+  sheet.setAttribute('aria-hidden', 'true');
+  [...refs.days.children].forEach((child) => sheet.append(child.cloneNode(true)));
+  return sheet;
 }
 
 async function moveToAdjacentPage(step) {
@@ -205,23 +220,26 @@ async function moveToAdjacentPage(step) {
   const target = pages[currentIndex + step];
   if (currentIndex < 0 || !target) return false;
 
-  const direction = step > 0 ? 'next' : 'previous';
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!pageTurnEnabled || reduceMotion) {
+    showSwipeTarget(target);
+    return true;
+  }
+
+  const direction = step > 0 ? 'next' : 'previous';
+  const oldHeight = refs.days.offsetHeight;
+  const oldSheet = cloneCurrentPage();
   pageTurnInProgress = true;
-  refs.days.classList.add('page-turning');
   try {
-    if (!reduceMotion) await waitForPageTurn(`page-turn-${direction}-out`, PAGE_TURN_OUT_MS);
-    activeCategory = target.category;
-    localStorage.setItem('globalnews-reader-category', activeCategory);
-    if (target.category === 'hn') {
-      activeHnView = target.hnView;
-      localStorage.setItem('globalnews-reader-hn-view', activeHnView);
-    }
-    renderArchive(archive, archiveLoadedFromCache);
-    if (!selectedItems(archive).length) loadArchive();
-    if (!reduceMotion) await waitForPageTurn(`page-turn-${direction}-in`, PAGE_TURN_IN_MS);
+    showSwipeTarget(target);
+    refs.days.style.minHeight = `${Math.max(oldHeight, refs.days.offsetHeight)}px`;
+    refs.days.append(oldSheet);
+    refs.days.classList.add('page-turning', `page-turn-${direction}`);
+    await new Promise((resolve) => window.setTimeout(resolve, PAGE_TURN_MS));
   } finally {
-    refs.days.classList.remove('page-turning', ...PAGE_TURN_CLASSES);
+    oldSheet.remove();
+    refs.days.classList.remove('page-turning', 'page-turn-next', 'page-turn-previous');
+    refs.days.style.minHeight = '';
     pageTurnInProgress = false;
   }
   return true;
@@ -248,6 +266,13 @@ refs.days.addEventListener('touchend', (event) => {
   if (event.cancelable) event.preventDefault();
   moveToAdjacentPage(deltaX < 0 ? 1 : -1);
 }, { passive: false });
+
+pageTurnToggle?.addEventListener('click', () => {
+  pageTurnEnabled = !pageTurnEnabled;
+  localStorage.setItem(PAGE_TURN_STORAGE_KEY, pageTurnEnabled ? 'on' : 'off');
+  updatePageTurnToggle();
+});
+updatePageTurnToggle();
 
 ensureHnSubtabs();
 updateCategoryTabs();
