@@ -164,6 +164,62 @@ selectCategory = function selectCategory(category) {
   if (!selectedItems(archive).length) loadArchive();
 };
 
+const SWIPE_MIN_DISTANCE = 48;
+const SWIPE_DIRECTION_DOMINANCE = 1.25;
+
+function swipePages() {
+  return refs.tabs.flatMap((tab) => {
+    const category = tab.dataset.category;
+    if (!category) return [];
+    if (category === 'hn') return [
+      { category: 'hn', hnView: 'current' },
+      { category: 'hn', hnView: 'front' },
+    ];
+    return [{ category }];
+  });
+}
+
+function moveToAdjacentPage(step) {
+  const pages = swipePages();
+  const currentIndex = pages.findIndex((page) => page.category === activeCategory && (
+    page.category !== 'hn' || page.hnView === activeHnView
+  ));
+  const target = pages[currentIndex + step];
+  if (currentIndex < 0 || !target) return false;
+
+  activeCategory = target.category;
+  localStorage.setItem('globalnews-reader-category', activeCategory);
+  if (target.category === 'hn') {
+    activeHnView = target.hnView;
+    localStorage.setItem('globalnews-reader-hn-view', activeHnView);
+  }
+  renderArchive(archive, archiveLoadedFromCache);
+  if (!selectedItems(archive).length) loadArchive();
+  return true;
+}
+
+let listTouchStart = null;
+refs.days.addEventListener('touchstart', (event) => {
+  if (event.touches.length !== 1) { listTouchStart = null; return; }
+  const touch = event.touches[0];
+  listTouchStart = { x: touch.clientX, y: touch.clientY };
+}, { passive: true });
+refs.days.addEventListener('touchmove', (event) => {
+  if (event.touches.length !== 1) listTouchStart = null;
+}, { passive: true });
+refs.days.addEventListener('touchcancel', () => { listTouchStart = null; }, { passive: true });
+refs.days.addEventListener('touchend', (event) => {
+  const start = listTouchStart;
+  listTouchStart = null;
+  const touch = event.changedTouches[0];
+  if (!start || !touch) return;
+  const deltaX = touch.clientX - start.x;
+  const deltaY = touch.clientY - start.y;
+  if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
+  if (event.cancelable) event.preventDefault();
+  moveToAdjacentPage(deltaX < 0 ? 1 : -1);
+}, { passive: false });
+
 ensureHnSubtabs();
 updateCategoryTabs();
 

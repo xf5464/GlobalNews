@@ -56,7 +56,7 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
 }
 .category-tab:active { transform: scale(.99); }
 
-.days { display: grid; gap: 24px; }
+.days { display: grid; gap: 24px; touch-action: pan-y; }
 .day { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--card); box-shadow: 0 14px 45px rgba(53, 48, 38, .06); }
 .day-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px 20px 14px; border-bottom: 1px solid rgba(128, 119, 101, .14); }
 .day-toggle {
