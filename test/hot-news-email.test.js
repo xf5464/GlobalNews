@@ -48,6 +48,8 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /\{ category: 'hn', hnView: 'current' \}/);
   assert.match(hnScript, /\{ category: 'hn', hnView: 'front' \}/);
   assert.match(hnScript, /event\.preventDefault\(\)/);
+  assert.match(hnScript, /page-turn-\$\{direction\}-out/);
+  assert.match(hnScript, /prefers-reduced-motion: reduce/);
   assert.match(hnRefresh, /addChineseTranslations\(stories, 450, \{ strict: false \}\)/);
   assert.match(readerRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
   assert.match(aggregatedRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
@@ -55,6 +57,9 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.doesNotMatch(finalVerification, /untranslated titles/);
   assert.match(styles, /\.hn-comments-link/);
   assert.match(styles, /\.days\s*\{[^}]*touch-action:\s*pan-y/s);
+  assert.match(styles, /@keyframes page-turn-next-in/);
+  assert.match(styles, /@keyframes page-turn-previous-in/);
+  assert.match(styles, /@keyframes page-turn-shade/);
   assert.match(uiRules, /Hacker News 评论入口/);
   assert.match(uiRules, /列表左右滑动分页/);
   assert.match(uiRules, /googlechromes:\/\//);

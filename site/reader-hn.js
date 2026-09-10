@@ -166,6 +166,13 @@ selectCategory = function selectCategory(category) {
 
 const SWIPE_MIN_DISTANCE = 48;
 const SWIPE_DIRECTION_DOMINANCE = 1.25;
+const PAGE_TURN_OUT_MS = 140;
+const PAGE_TURN_IN_MS = 230;
+const PAGE_TURN_CLASSES = [
+  'page-turn-next-out', 'page-turn-next-in',
+  'page-turn-previous-out', 'page-turn-previous-in',
+];
+let pageTurnInProgress = false;
 
 function swipePages() {
   return refs.tabs.flatMap((tab) => {
@@ -179,7 +186,18 @@ function swipePages() {
   });
 }
 
-function moveToAdjacentPage(step) {
+function waitForPageTurn(className, duration) {
+  refs.days.classList.add(className);
+  return new Promise((resolve) => {
+    window.setTimeout(() => {
+      refs.days.classList.remove(className);
+      resolve();
+    }, duration);
+  });
+}
+
+async function moveToAdjacentPage(step) {
+  if (pageTurnInProgress) return false;
   const pages = swipePages();
   const currentIndex = pages.findIndex((page) => page.category === activeCategory && (
     page.category !== 'hn' || page.hnView === activeHnView
@@ -187,20 +205,31 @@ function moveToAdjacentPage(step) {
   const target = pages[currentIndex + step];
   if (currentIndex < 0 || !target) return false;
 
-  activeCategory = target.category;
-  localStorage.setItem('globalnews-reader-category', activeCategory);
-  if (target.category === 'hn') {
-    activeHnView = target.hnView;
-    localStorage.setItem('globalnews-reader-hn-view', activeHnView);
+  const direction = step > 0 ? 'next' : 'previous';
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  pageTurnInProgress = true;
+  refs.days.classList.add('page-turning');
+  try {
+    if (!reduceMotion) await waitForPageTurn(`page-turn-${direction}-out`, PAGE_TURN_OUT_MS);
+    activeCategory = target.category;
+    localStorage.setItem('globalnews-reader-category', activeCategory);
+    if (target.category === 'hn') {
+      activeHnView = target.hnView;
+      localStorage.setItem('globalnews-reader-hn-view', activeHnView);
+    }
+    renderArchive(archive, archiveLoadedFromCache);
+    if (!selectedItems(archive).length) loadArchive();
+    if (!reduceMotion) await waitForPageTurn(`page-turn-${direction}-in`, PAGE_TURN_IN_MS);
+  } finally {
+    refs.days.classList.remove('page-turning', ...PAGE_TURN_CLASSES);
+    pageTurnInProgress = false;
   }
-  renderArchive(archive, archiveLoadedFromCache);
-  if (!selectedItems(archive).length) loadArchive();
   return true;
 }
 
 let listTouchStart = null;
 refs.days.addEventListener('touchstart', (event) => {
-  if (event.touches.length !== 1) { listTouchStart = null; return; }
+  if (pageTurnInProgress || event.touches.length !== 1) { listTouchStart = null; return; }
   const touch = event.touches[0];
   listTouchStart = { x: touch.clientX, y: touch.clientY };
 }, { passive: true });
