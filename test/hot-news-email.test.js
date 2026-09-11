@@ -173,6 +173,14 @@ test("uses YouTube universal links for the native-app button", () => {
   assert.match(script, /views\.className = 'news-views'/);
 });
 
+test("only the right-side control opens an external news page", () => {
+  const script = fs.readFileSync("site/reader.js", "utf8");
+  assert.match(script, /document\.createElement\(youtube \? 'div' : 'button'\)/);
+  assert.match(script, /button\.addEventListener\('click', \(\) => loadArticle\(item\.url\)\)/);
+  assert.match(script, /browser\.href = youtube \? item\.url : chromeUrl\(directArticleUrl\(item\.url\)\)/);
+  assert.doesNotMatch(script, /button\.href\s*=/);
+});
+
 test("orders YouTube results by views and creates direct video links", () => {
   const search = { items: [
     { id: { videoId: "low" } }, { id: { videoId: "high" } },

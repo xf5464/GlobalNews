@@ -28,7 +28,14 @@ Hacker News 分类包含两个二级页签：
 
 ## Hacker News 评论入口
 
-每条 Hacker News 新闻的最右侧必须增加“评论”按钮，链接到该条新闻对应的 `news.ycombinator.com/item?id=文章编号` 页面，并与其他非 YouTube 外链一致，使用 `googlechromes://`（HTTP 时使用 `googlechrome://`）直接唤起 Chrome。原新闻标题链接和原有的外部打开按钮保持不变；`当前 Top 10` 与 `Front 日榜 Top 10` 都必须提供该入口。
+每条 Hacker News 新闻的最右侧必须增加“评论”按钮，链接到该条新闻对应的 `news.ycombinator.com/item?id=文章编号` 页面，并与其他非 YouTube 外链一致，使用 `googlechromes://`（HTTP 时使用 `googlechrome://`）直接唤起 Chrome。左侧新闻内容打开站内阅读弹窗，右侧原有的外部打开按钮保持不变；`当前 Top 10` 与 `Front 日榜 Top 10` 都必须提供该入口。
+
+## 新闻项点击区域
+
+1. 科技、美股、国际和 Hacker News 的左侧新闻内容只能打开站内提取与翻译弹窗，不能跳转到外部网页。
+2. 只有右侧箭头按钮可以直接打开新闻原网页；非 YouTube 新闻使用 Chrome，YouTube 使用系统的 YouTube 通用链接。
+3. YouTube 左侧内容只负责展示标题、频道、时间和播放量，不绑定外部跳转；打开视频必须点击右侧箭头。
+4. Hacker News 的“评论”按钮是独立外链入口，不受上述箭头按钮限制。
 
 ## 列表左右滑动分页
 

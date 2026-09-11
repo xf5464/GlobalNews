@@ -135,8 +135,9 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
   padding: 15px 10px 15px 18px; border: 0;
   color: var(--ink); background: transparent; text-align: left; text-decoration: none; cursor: pointer;
 }
+.news-item-static { cursor: default; }
 .news-list li:last-child .news-row { border-bottom: 0; }
-.news-item:active { background: rgba(23, 92, 211, .06); }
+.news-item:not(.news-item-static):active { background: rgba(23, 92, 211, .06); }
 .news-copy { min-width: 0; }
 .safari-link {
   display: flex; align-items: center; justify-content: center; width: 44px; min-width: 44px; padding: 8px 5px;

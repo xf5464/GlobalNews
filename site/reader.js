@@ -105,7 +105,11 @@ function chromeUrl(url) {
 function itemButton(item, rank) {
   const row = document.createElement('div'); row.className = 'news-row';
   const youtube = item.category === 'youtube';
-  const button = document.createElement('a'); button.className = 'news-item'; button.href = youtube ? item.url : chromeUrl(directArticleUrl(item.url)); button.dataset.id = item.id || '';
+  const button = document.createElement(youtube ? 'div' : 'button'); button.className = `news-item${youtube ? ' news-item-static' : ''}`; button.dataset.id = item.id || '';
+  if (!youtube) {
+    button.type = 'button';
+    button.addEventListener('click', () => loadArticle(item.url));
+  }
   const number = document.createElement('span'); number.className = 'rank'; number.textContent = String(rank);
   const copy = document.createElement('span'); copy.className = 'news-copy';
   const translated = document.createElement('span'); translated.className = 'news-title'; translated.textContent = item.titleZh || item.title || '未命名新闻';
