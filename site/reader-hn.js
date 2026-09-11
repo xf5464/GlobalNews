@@ -8,6 +8,37 @@ if (typeof activeCategory !== 'undefined') {
 }
 
 let activeHnView = localStorage.getItem('globalnews-reader-hn-view') === 'front' ? 'front' : 'current';
+const SCROLL_POSITIONS_KEY = 'globalnews-reader-scroll-positions-v1';
+const savedScrollPositions = jsonStorage(SCROLL_POSITIONS_KEY, {});
+let pageScrollPositions = savedScrollPositions && typeof savedScrollPositions === 'object' && !Array.isArray(savedScrollPositions)
+  ? savedScrollPositions : {};
+let pendingInitialScrollRestore = true;
+
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
+function pageTarget(category = activeCategory, hnView = activeHnView) {
+  return category === 'hn' ? { category, hnView } : { category };
+}
+
+function pageScrollKey(target = pageTarget()) {
+  return target.category === 'hn' ? `hn-${target.hnView || 'current'}` : target.category;
+}
+
+function saveCurrentScrollPosition() {
+  pageScrollPositions[pageScrollKey()] = Math.max(0, window.scrollY);
+  localStorage.setItem(SCROLL_POSITIONS_KEY, JSON.stringify(pageScrollPositions));
+}
+
+function restorePageScrollPosition(target) {
+  const savedPosition = Number(pageScrollPositions[pageScrollKey(target)]);
+  window.scrollTo(0, Number.isFinite(savedPosition) && savedPosition >= 0 ? savedPosition : 0);
+}
+
+function restoreInitialPageScrollOnce() {
+  if (!pendingInitialScrollRestore) return;
+  pendingInitialScrollRestore = false;
+  restorePageScrollPosition(pageTarget());
+}
 
 categoryLabel = function categoryLabel(category) {
   return category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'hn' ? 'Hacker News' : '科技';
@@ -47,9 +78,7 @@ function ensureHnSubtabs() {
     nav.addEventListener('click', (event) => {
       const button = event.target.closest('[data-hn-view]');
       if (!button || button.dataset.hnView === activeHnView) return;
-      activeHnView = button.dataset.hnView === 'front' ? 'front' : 'current';
-      localStorage.setItem('globalnews-reader-hn-view', activeHnView);
-      renderArchive(archive, archiveLoadedFromCache);
+      showPage({ category: 'hn', hnView: button.dataset.hnView === 'front' ? 'front' : 'current' });
     });
   }
   nav.hidden = activeCategory !== 'hn';
@@ -141,7 +170,10 @@ renderArchive = function renderArchive(value, fromCache = false) {
       ? `${categoryLabel(activeCategory)} · ${mode} · ${categoryFreshness(items, fromCache)}`
       : `本次抓取暂无${categoryLabel(activeCategory)}内容`;
   }
-  if (!items.length) return;
+  if (!items.length) {
+    restoreInitialPageScrollOnce();
+    return;
+  }
 
   const section = document.createElement('section');
   section.className = 'day';
@@ -154,14 +186,12 @@ renderArchive = function renderArchive(value, fromCache = false) {
   });
   section.append(list);
   refs.days.append(section);
+  restoreInitialPageScrollOnce();
 };
 
 selectCategory = function selectCategory(category) {
   if (!['tech', 'market', 'world', 'youtube', 'hn'].includes(category) || category === activeCategory) return;
-  activeCategory = category;
-  localStorage.setItem('globalnews-reader-category', category);
-  renderArchive(archive, archiveLoadedFromCache);
-  if (!selectedItems(archive).length) loadArchive();
+  showPage(pageTarget(category));
 };
 
 const SWIPE_MIN_DISTANCE = 48;
@@ -192,7 +222,8 @@ function updatePageTurnToggle() {
   }
 }
 
-function showSwipeTarget(target) {
+function showPage(target, { saveCurrent = true } = {}) {
+  if (saveCurrent) saveCurrentScrollPosition();
   activeCategory = target.category;
   localStorage.setItem('globalnews-reader-category', activeCategory);
   if (target.category === 'hn') {
@@ -200,13 +231,18 @@ function showSwipeTarget(target) {
     localStorage.setItem('globalnews-reader-hn-view', activeHnView);
   }
   renderArchive(archive, archiveLoadedFromCache);
+  restorePageScrollPosition(target);
   if (!selectedItems(archive).length) loadArchive();
 }
 
 function cloneCurrentPage() {
+  const bounds = refs.days.getBoundingClientRect();
   const sheet = document.createElement('div');
   sheet.className = 'page-turn-sheet';
   sheet.setAttribute('aria-hidden', 'true');
+  sheet.style.top = `${bounds.top}px`;
+  sheet.style.left = `${bounds.left}px`;
+  sheet.style.width = `${bounds.width}px`;
   [...refs.days.children].forEach((child) => sheet.append(child.cloneNode(true)));
   return sheet;
 }
@@ -222,24 +258,26 @@ async function moveToAdjacentPage(step) {
 
   const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   if (!pageTurnEnabled || reduceMotion) {
-    showSwipeTarget(target);
+    showPage(target);
     return true;
   }
 
   const direction = step > 0 ? 'next' : 'previous';
-  const oldHeight = refs.days.offsetHeight;
+  saveCurrentScrollPosition();
   const oldSheet = cloneCurrentPage();
+  const bounds = refs.days.getBoundingClientRect();
+  const pivotY = Math.max(80, window.innerHeight * .45 - bounds.top);
+  oldSheet.style.transformOrigin = `${direction === 'next' ? 'left' : 'right'} ${pivotY}px`;
+  oldSheet.classList.add(`page-turn-sheet-${direction}`);
   pageTurnInProgress = true;
   try {
-    showSwipeTarget(target);
-    refs.days.style.minHeight = `${Math.max(oldHeight, refs.days.offsetHeight)}px`;
-    refs.days.append(oldSheet);
+    document.body.append(oldSheet);
+    showPage(target, { saveCurrent: false });
     refs.days.classList.add('page-turning', `page-turn-${direction}`);
     await new Promise((resolve) => window.setTimeout(resolve, PAGE_TURN_MS));
   } finally {
     oldSheet.remove();
     refs.days.classList.remove('page-turning', 'page-turn-next', 'page-turn-previous');
-    refs.days.style.minHeight = '';
     pageTurnInProgress = false;
   }
   return true;
@@ -271,6 +309,10 @@ pageTurnToggle?.addEventListener('click', () => {
   pageTurnEnabled = !pageTurnEnabled;
   localStorage.setItem(PAGE_TURN_STORAGE_KEY, pageTurnEnabled ? 'on' : 'off');
   updatePageTurnToggle();
+});
+window.addEventListener('pagehide', saveCurrentScrollPosition);
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveCurrentScrollPosition();
 });
 updatePageTurnToggle();
 

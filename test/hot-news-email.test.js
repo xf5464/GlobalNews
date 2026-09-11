@@ -53,6 +53,12 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /PAGE_TURN_STORAGE_KEY/);
   assert.match(hnScript, /pageTurnEnabled/);
   assert.match(hnScript, /prefers-reduced-motion: reduce/);
+  assert.match(hnScript, /SCROLL_POSITIONS_KEY/);
+  assert.match(hnScript, /hn-\$\{target\.hnView/);
+  assert.match(hnScript, /saveCurrentScrollPosition/);
+  assert.match(hnScript, /restorePageScrollPosition/);
+  assert.match(hnScript, /window\.scrollTo/);
+  assert.match(hnScript, /pagehide/);
   assert.match(hnRefresh, /addChineseTranslations\(stories, 450, \{ strict: false \}\)/);
   assert.match(readerRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
   assert.match(aggregatedRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
@@ -67,6 +73,7 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(html, /id="pageTurnToggle"[^>]*role="switch"/);
   assert.match(uiRules, /Hacker News 评论入口/);
   assert.match(uiRules, /列表左右滑动分页/);
+  assert.match(uiRules, /分别持久记录上一次的纵向滚动位置/);
   assert.match(uiRules, /googlechromes:\/\//);
   assert.match(script, /globalnews-recent-v1/);
   assert.match(script, /ARCHIVE_URLS/);
