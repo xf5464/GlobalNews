@@ -105,11 +105,7 @@ function chromeUrl(url) {
 function itemButton(item, rank) {
   const row = document.createElement('div'); row.className = 'news-row';
   const youtube = item.category === 'youtube';
-  const button = document.createElement(youtube ? 'div' : 'button'); button.className = `news-item${youtube ? ' news-item-static' : ''}`; button.dataset.id = item.id || '';
-  if (!youtube) {
-    button.type = 'button';
-    button.addEventListener('click', () => loadArticle(item.url));
-  }
+  const content = document.createElement('div'); content.className = 'news-item news-item-static'; content.dataset.id = item.id || '';
   const number = document.createElement('span'); number.className = 'rank'; number.textContent = String(rank);
   const copy = document.createElement('span'); copy.className = 'news-copy';
   const translated = document.createElement('span'); translated.className = 'news-title'; translated.textContent = item.titleZh || item.title || '未命名新闻';
@@ -123,13 +119,13 @@ function itemButton(item, rank) {
   if (item.category === 'youtube' && item.engagement) { const views = document.createElement('span'); views.className = 'news-views'; views.textContent = ` · ${item.engagement}`; details.append(views); }
   if (item.isCached) { const cache = document.createElement('span'); cache.className = 'news-cache'; cache.textContent = ` · 缓存 ${publishedTimeLabel(item.sourceUpdatedAt || item.fetchedAt)}`; details.append(cache); }
   copy.append(details);
-  button.append(number, copy);
+  content.append(number, copy);
   const browser = document.createElement('a'); browser.className = 'safari-link';
   browser.href = youtube ? item.url : chromeUrl(directArticleUrl(item.url)); browser.textContent = '↗';
   browser.title = youtube ? '使用 YouTube 打开' : '使用 Chrome 打开';
   browser.setAttribute('aria-label', `${youtube ? '使用 YouTube 打开' : '使用 Chrome 打开'}：${translated.textContent}`);
   if (youtube) browser.dataset.nativeApp = 'youtube';
-  row.append(button, browser); return row;
+  row.append(content, browser); return row;
 }
 function updateCategoryTabs() {
   refs.tabs.forEach((tab) => { const selected = tab.dataset.category === activeCategory; tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1; });

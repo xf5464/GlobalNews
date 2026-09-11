@@ -175,10 +175,11 @@ test("uses YouTube universal links for the native-app button", () => {
 
 test("only the right-side control opens an external news page", () => {
   const script = fs.readFileSync("site/reader.js", "utf8");
-  assert.match(script, /document\.createElement\(youtube \? 'div' : 'button'\)/);
-  assert.match(script, /button\.addEventListener\('click', \(\) => loadArticle\(item\.url\)\)/);
+  assert.match(script, /const content = document\.createElement\('div'\)/);
+  assert.match(script, /content\.className = 'news-item news-item-static'/);
   assert.match(script, /browser\.href = youtube \? item\.url : chromeUrl\(directArticleUrl\(item\.url\)\)/);
-  assert.doesNotMatch(script, /button\.href\s*=/);
+  assert.doesNotMatch(script, /content\.(?:href|onclick)\s*=/);
+  assert.doesNotMatch(script, /content\.addEventListener/);
 });
 
 test("orders YouTube results by views and creates direct video links", () => {
