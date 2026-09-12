@@ -306,7 +306,13 @@ test("refuses to publish a snapshot with untranslated foreign titles", () => {
 test("filters strict paid-subscription sources by publisher or domain", () => {
   assert.equal(isPaywalledItem({ source: "The Wall Street Journal", url: "https://news.google.com/story" }), true);
   assert.equal(isPaywalledItem({ source: "Unknown", url: "https://www.bloomberg.com/news/a" }), true);
+  assert.equal(isPaywalledItem({ source: "MarketWatch", url: "https://news.google.com/story" }), true);
+  assert.equal(isPaywalledItem({ source: "Unknown", url: "https://www.marketwatch.com/story/a" }), true);
   assert.equal(isPaywalledItem({ source: "Reuters", url: "https://reuters.com/world/a" }), false);
+});
+
+test("does not configure MarketWatch as a market news source", () => {
+  assert.equal(NEWS_SOURCES.market.some((source) => source.key === "marketwatch" || source.name === "MarketWatch"), false);
 });
 
 test("does not treat a YouTube channel name as a paid news URL", () => {
