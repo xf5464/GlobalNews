@@ -40,6 +40,12 @@ function restoreInitialPageScrollOnce() {
   restorePageScrollPosition(pageTarget());
 }
 
+resetScrollPositionsForNewArchive = function resetScrollPositionsForNewArchive() {
+  pageScrollPositions = {};
+  localStorage.removeItem(SCROLL_POSITIONS_KEY);
+  pendingInitialScrollRestore = true;
+};
+
 categoryLabel = function categoryLabel(category) {
   return category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'hn' ? 'Hacker News' : '科技';
 };

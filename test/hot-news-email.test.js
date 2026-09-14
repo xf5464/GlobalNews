@@ -59,6 +59,11 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /restorePageScrollPosition/);
   assert.match(hnScript, /window\.scrollTo/);
   assert.match(hnScript, /pagehide/);
+  assert.match(script, /bestUpdatedAt > cachedUpdatedAt\) resetScrollPositionsForNewArchive\(\)/);
+  assert.match(hnScript, /resetScrollPositionsForNewArchive = function/);
+  assert.match(hnScript, /pageScrollPositions = \{\}/);
+  assert.match(hnScript, /localStorage\.removeItem\(SCROLL_POSITIONS_KEY\)/);
+  assert.match(hnScript, /pendingInitialScrollRestore = true/);
   assert.match(hnRefresh, /addChineseTranslations\(stories, 450, \{ strict: false \}\)/);
   assert.match(readerRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
   assert.match(aggregatedRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);

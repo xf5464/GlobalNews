@@ -32,6 +32,7 @@ let fontStep = Number(localStorage.getItem('globalnews-reader-font') || 1);
 const fontSizes = [17, 19, 21, 23];
 
 function jsonStorage(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
+function resetScrollPositionsForNewArchive() {}
 function chinaDate(value = Date.now()) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value));
 }
@@ -205,7 +206,11 @@ async function loadArchive() {
       if (!best || nextUpdatedAt > bestUpdatedAt) { best = next; bestUpdatedAt = nextUpdatedAt; }
     } catch (error) { lastError = error; }
   }
-  if (best && bestUpdatedAt >= cachedUpdatedAt) { renderArchive(best, false); return; }
+  if (best && bestUpdatedAt >= cachedUpdatedAt) {
+    if (bestUpdatedAt > cachedUpdatedAt) resetScrollPositionsForNewArchive();
+    renderArchive(best, false);
+    return;
+  }
   if (cached.items.length) {
     renderArchive(cached, true);
     if (best && bestUpdatedAt < cachedUpdatedAt) refs.archiveMeta.textContent += ' · 服务器返回的数据比本地缓存更旧，已拒绝降级';
