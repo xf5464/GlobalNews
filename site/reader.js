@@ -12,6 +12,7 @@ const RESUME_REFRESH_MS = 5 * 60 * 1000;
 
 const refs = {
   days: document.querySelector('#daysContainer'), empty: document.querySelector('#emptyArchive'),
+  emptyTitle: document.querySelector('#emptyArchiveTitle'), emptyMessage: document.querySelector('#emptyArchiveMessage'),
   archiveMeta: document.querySelector('#archiveMeta'), tabs: [...document.querySelectorAll('.category-tab')],
   dialog: document.querySelector('#readerDialog'), close: document.querySelector('#closeDialog'),
   loading: document.querySelector('#loadingState'), article: document.querySelector('#article'),
@@ -25,7 +26,7 @@ const refs = {
 let archive = { schemaVersion: 2, updatedAt: null, refreshAttemptedAt: null, items: [] };
 let archiveLoadedFromCache = false;
 const savedCategory = localStorage.getItem('globalnews-reader-category');
-let activeCategory = ['tech', 'market', 'world', 'youtube', 'trends'].includes(savedCategory) ? savedCategory : 'tech';
+let activeCategory = ['favorites', 'tech', 'market', 'world', 'youtube', 'trends'].includes(savedCategory) ? savedCategory : 'tech';
 let currentUrl = '';
 let backgroundedAt = 0;
 let fontStep = Number(localStorage.getItem('globalnews-reader-font') || 1);
@@ -76,7 +77,7 @@ function pruneArticleCache() {
   return next;
 }
 function categoryLabel(category) {
-  return category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'trends' ? '热点事件' : '科技';
+  return category === 'favorites' ? '收藏' : category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'trends' ? '热点事件' : '科技';
 }
 function publishedTimeLabel(value) {
   const date = new Date(value);
@@ -181,7 +182,7 @@ function renderArchive(value, fromCache = false) {
   items.forEach((item, index) => { const li = document.createElement('li'); li.append(itemButton(item, index + 1)); list.append(li); }); section.append(list); refs.days.append(section);
 }
 function selectCategory(category) {
-  if (!['tech', 'market', 'world', 'youtube', 'trends'].includes(category) || category === activeCategory) return;
+  if (!['favorites', 'tech', 'market', 'world', 'youtube', 'trends'].includes(category) || category === activeCategory) return;
   activeCategory = category; localStorage.setItem('globalnews-reader-category', category); renderArchive(archive, archiveLoadedFromCache);
   if (category === 'trends' ? !(archive.trends || []).length : !selectedItems(archive).length) loadArchive();
 }

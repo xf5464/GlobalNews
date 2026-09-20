@@ -59,7 +59,7 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
 }
 
 .category-tabs {
-  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin: 0 0 24px; padding: 4px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, .8fr)) minmax(0, .95fr) minmax(0, 1.35fr); gap: 4px; margin: 0 0 24px; padding: 4px;
   border: 1px solid var(--line); border-radius: 14px; background: rgba(222, 216, 202, .45);
 }
 .category-tab {
@@ -129,7 +129,7 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
 .day-toggle[aria-expanded="false"] .day-caret { transform: rotate(-90deg); }
 .day-count { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .news-list { list-style: none; margin: 0; padding: 0; }
-.news-row { display: flex; align-items: stretch; border-bottom: 1px solid rgba(128, 119, 101, .13); }
+.news-row { display: flex; align-items: stretch; overflow: hidden; border-bottom: 1px solid rgba(128, 119, 101, .13); }
 .news-item {
   display: grid; flex: 1; grid-template-columns: 26px minmax(0, 1fr); gap: 11px; min-width: 0;
   padding: 15px 10px 15px 18px; border: 0;
@@ -149,6 +149,18 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
   font-size: 12px; font-weight: 760; text-decoration: none; white-space: nowrap;
 }
 .hn-comments-link:active { background: rgba(18, 183, 106, .13); }
+.favorite-row-action {
+  display: flex; flex: 0 0 0; width: 0; min-width: 0; align-items: center; justify-content: center;
+  overflow: hidden; padding: 0; border: 0; border-left: 0 solid rgba(128, 119, 101, .13);
+  color: white; background: #b54708; font-size: 12px; font-weight: 760; white-space: nowrap;
+  transition: flex-basis .18s ease, width .18s ease, border-left-width .18s ease;
+}
+.news-row.is-action-open .favorite-row-action {
+  flex-basis: 68px; width: 68px; min-width: 68px; border-left-width: 1px;
+}
+.favorite-row-action.remove-favorite { background: #b42318; }
+.favorite-row-action:disabled { background: #667085; }
+.favorite-row-action:active:not(:disabled) { filter: brightness(.9); }
 .rank { padding-top: 2px; color: var(--blue); font-size: 13px; font-weight: 760; }
 .news-title { display: block; font-family: ui-serif, "Songti SC", STSong, serif; font-size: 18px; font-weight: 700; line-height: 1.42; }
 .news-original { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.35; }

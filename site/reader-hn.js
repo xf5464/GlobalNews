@@ -9,9 +9,14 @@ if (typeof activeCategory !== 'undefined') {
 
 let activeHnView = localStorage.getItem('globalnews-reader-hn-view') === 'front' ? 'front' : 'current';
 const SCROLL_POSITIONS_KEY = 'globalnews-reader-scroll-positions-v1';
+const FAVORITES_KEY = 'globalnews-reader-favorites-v1';
 const savedScrollPositions = jsonStorage(SCROLL_POSITIONS_KEY, {});
 let pageScrollPositions = savedScrollPositions && typeof savedScrollPositions === 'object' && !Array.isArray(savedScrollPositions)
   ? savedScrollPositions : {};
+const savedFavorites = jsonStorage(FAVORITES_KEY, []);
+let favoriteItems = Array.isArray(savedFavorites)
+  ? savedFavorites.filter((item) => item?.url && ['tech', 'market', 'world', 'youtube', 'hn', 'hn-front'].includes(item.category))
+  : [];
 let pendingInitialScrollRestore = true;
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -47,7 +52,7 @@ resetScrollPositionsForNewArchive = function resetScrollPositionsForNewArchive()
 };
 
 categoryLabel = function categoryLabel(category) {
-  return category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'hn' ? 'Hacker News' : '科技';
+  return category === 'favorites' ? '收藏' : category === 'market' ? '美股' : category === 'world' ? '国际' : category === 'youtube' ? 'YouTube' : category === 'hn' ? 'Hacker News' : '科技';
 };
 
 function ensureHnSubtabs() {
@@ -96,6 +101,103 @@ function ensureHnSubtabs() {
 }
 
 const baseItemButton = itemButton;
+const ROW_ACTION_MIN_DISTANCE = 36;
+const ROW_ACTION_MAX_DISTANCE = 120;
+
+function favoriteIdentity(item) {
+  return String(item?.url || item?.id || '');
+}
+
+function isFavorite(item) {
+  const identity = favoriteIdentity(item);
+  return Boolean(identity) && favoriteItems.some((saved) => favoriteIdentity(saved) === identity);
+}
+
+function saveFavorites() {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favoriteItems));
+}
+
+function addFavorite(item) {
+  const identity = favoriteIdentity(item);
+  if (!identity || isFavorite(item)) return false;
+  favoriteItems = [{ ...item, favoritedAt: new Date().toISOString() },
+    ...favoriteItems.filter((saved) => favoriteIdentity(saved) !== identity)];
+  saveFavorites();
+  return true;
+}
+
+function removeFavorite(item) {
+  const identity = favoriteIdentity(item);
+  const next = favoriteItems.filter((saved) => favoriteIdentity(saved) !== identity);
+  if (next.length === favoriteItems.length) return false;
+  favoriteItems = next;
+  saveFavorites();
+  return true;
+}
+
+function setRowActionOpen(row, open) {
+  const action = row.querySelector('.favorite-row-action');
+  row.classList.toggle('is-action-open', open);
+  if (action) {
+    action.setAttribute('aria-hidden', String(!open));
+    action.tabIndex = open ? 0 : -1;
+  }
+}
+
+function attachRowActionGesture(row) {
+  let start = null;
+  row.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1 || event.target.closest('a, button')) { start = null; return; }
+    const touch = event.touches[0];
+    start = { x: touch.clientX, y: touch.clientY };
+    refs.days.querySelectorAll('.news-row.is-action-open').forEach((other) => {
+      if (other !== row) setRowActionOpen(other, false);
+    });
+  }, { passive: true });
+  row.addEventListener('touchcancel', () => { start = null; }, { passive: true });
+  row.addEventListener('touchend', (event) => {
+    const origin = start;
+    start = null;
+    const touch = event.changedTouches[0];
+    if (!origin || !touch) return;
+    const deltaX = touch.clientX - origin.x;
+    const deltaY = touch.clientY - origin.y;
+    const horizontal = Math.abs(deltaX);
+    if (horizontal < ROW_ACTION_MIN_DISTANCE || horizontal > ROW_ACTION_MAX_DISTANCE || horizontal <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
+    if (deltaX >= 0 && !row.classList.contains('is-action-open')) return;
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    setRowActionOpen(row, deltaX < 0);
+  }, { passive: false });
+}
+
+function appendFavoriteAction(row, item) {
+  const removing = activeCategory === 'favorites';
+  const saved = isFavorite(item);
+  const action = document.createElement('button');
+  action.className = `favorite-row-action${removing ? ' remove-favorite' : ''}`;
+  action.type = 'button';
+  action.textContent = removing ? '取消收藏' : saved ? '已收藏' : '收藏';
+  action.disabled = !removing && saved;
+  action.setAttribute('aria-label', `${action.textContent}：${item.titleZh || item.title || '新闻'}`);
+  action.setAttribute('aria-hidden', 'true');
+  action.tabIndex = -1;
+  action.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (removing) {
+      if (removeFavorite(item)) renderArchive(archive, archiveLoadedFromCache);
+      return;
+    }
+    if (addFavorite(item)) {
+      action.textContent = '已收藏';
+      action.disabled = true;
+      action.setAttribute('aria-label', `已收藏：${item.titleZh || item.title || '新闻'}`);
+    }
+    setRowActionOpen(row, false);
+  });
+  row.append(action);
+  attachRowActionGesture(row);
+}
 
 function hackerNewsCommentsUrl(item) {
   const sourceId = String(item?.sourceKey || '').match(/^hn(?:-front)?-(\d+)$/)?.[1];
@@ -109,32 +211,37 @@ function hackerNewsCommentsUrl(item) {
 
 itemButton = function itemButtonWithHackerNewsStats(item, rank) {
   const row = baseItemButton(item, rank);
-  if (!['hn', 'hn-front'].includes(item.category)) return row;
-  const details = row.querySelector('.news-details');
-  if (details && item.engagement) {
-    const stats = document.createElement('span');
-    stats.className = 'news-views';
-    stats.textContent = ` · ${String(item.engagement)
-      .replace(/\bpoints?\b/gi, '分')
-      .replace(/\bcomments?\b/gi, '条评论')}`;
-    details.append(stats);
+  if (['hn', 'hn-front'].includes(item.category)) {
+    const details = row.querySelector('.news-details');
+    if (details && item.engagement) {
+      const stats = document.createElement('span');
+      stats.className = 'news-views';
+      stats.textContent = ` · ${String(item.engagement)
+        .replace(/\bpoints?\b/gi, '分')
+        .replace(/\bcomments?\b/gi, '条评论')}`;
+      details.append(stats);
+    }
+    const commentsUrl = hackerNewsCommentsUrl(item);
+    if (commentsUrl) {
+      const comments = document.createElement('a');
+      comments.className = 'hn-comments-link';
+      comments.href = chromeUrl(commentsUrl);
+      comments.target = '_blank';
+      comments.rel = 'noopener noreferrer';
+      comments.textContent = '评论';
+      comments.title = '使用 Chrome 打开 Hacker News 评论页';
+      comments.setAttribute('aria-label', `使用 Chrome 查看 Hacker News 评论：${item.titleZh || item.title || '新闻'}`);
+      row.append(comments);
+    }
   }
-  const commentsUrl = hackerNewsCommentsUrl(item);
-  if (commentsUrl) {
-    const comments = document.createElement('a');
-    comments.className = 'hn-comments-link';
-    comments.href = chromeUrl(commentsUrl);
-    comments.target = '_blank';
-    comments.rel = 'noopener noreferrer';
-    comments.textContent = '评论';
-    comments.title = '使用 Chrome 打开 Hacker News 评论页';
-    comments.setAttribute('aria-label', `使用 Chrome 查看 Hacker News 评论：${item.titleZh || item.title || '新闻'}`);
-    row.append(comments);
-  }
+  appendFavoriteAction(row, item);
   return row;
 };
 
 selectedItems = function selectedItems(value) {
+  if (activeCategory === 'favorites') {
+    return [...favoriteItems].sort((left, right) => Date.parse(right.favoritedAt || 0) - Date.parse(left.favoritedAt || 0));
+  }
   const category = activeCategory === 'hn' && activeHnView === 'front' ? 'hn-front' : activeCategory;
   const items = (value.items || []).filter((item) => item.category === category);
   if (activeCategory === 'tech') return items.sort((left, right) => Number(right.score || 0) - Number(left.score || 0)).slice(0, 10);
@@ -159,7 +266,16 @@ renderArchive = function renderArchive(value, fromCache = false) {
 
   const items = selectedItems(archive);
   refs.empty.hidden = items.length > 0;
-  if (activeCategory === 'hn') {
+  refs.emptyTitle.textContent = activeCategory === 'favorites' ? '还没有收藏' : '还没有热点记录';
+  refs.emptyMessage.textContent = activeCategory === 'favorites'
+    ? '在其他分页左滑新闻，点击收藏后会显示在这里。'
+    : '下一次阅读器新闻刷新后，列表会自动显示在这里。';
+  if (activeCategory === 'favorites') {
+    refs.archiveMeta.style.whiteSpace = '';
+    refs.archiveMeta.style.overflow = '';
+    refs.archiveMeta.style.textOverflow = '';
+    refs.archiveMeta.textContent = items.length ? `收藏 · ${items.length}条 · 仅保存在本机` : '还没有收藏新闻';
+  } else if (activeCategory === 'hn') {
     refs.archiveMeta.style.whiteSpace = 'nowrap';
     refs.archiveMeta.style.overflow = 'hidden';
     refs.archiveMeta.style.textOverflow = 'ellipsis';
@@ -196,7 +312,7 @@ renderArchive = function renderArchive(value, fromCache = false) {
 };
 
 selectCategory = function selectCategory(category) {
-  if (!['tech', 'market', 'world', 'youtube', 'hn'].includes(category) || category === activeCategory) return;
+  if (!['favorites', 'tech', 'market', 'world', 'youtube', 'hn'].includes(category) || category === activeCategory) return;
   showPage(pageTarget(category));
 };
 
@@ -238,7 +354,7 @@ function showPage(target, { saveCurrent = true } = {}) {
   }
   renderArchive(archive, archiveLoadedFromCache);
   restorePageScrollPosition(target);
-  if (!selectedItems(archive).length) loadArchive();
+  if (target.category !== 'favorites' && !selectedItems(archive).length) loadArchive();
 }
 
 function cloneCurrentPage() {

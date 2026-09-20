@@ -16,7 +16,7 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand-group"><a class="brand" href="./">GlobalNews</a><span class="version-badge">v2026.09.14.1</span></div>
+      <div class="brand-group"><a class="brand" href="./">GlobalNews</a><span class="version-badge">v2026.09.20.1</span></div>
       <button id="pageTurnToggle" class="page-turn-toggle" type="button" role="switch" aria-checked="true">
         <span>翻页</span><span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
       </button>
@@ -29,6 +29,7 @@
       </section>
 
       <nav class="category-tabs" role="tablist" aria-label="热点分类">
+        <button class="category-tab" type="button" role="tab" data-category="favorites" aria-controls="daysContainer">收藏</button>
         <button class="category-tab" type="button" role="tab" data-category="tech" aria-controls="daysContainer">科技</button>
         <button class="category-tab" type="button" role="tab" data-category="market" aria-controls="daysContainer">美股</button>
         <button class="category-tab" type="button" role="tab" data-category="world" aria-controls="daysContainer">国际</button>
@@ -38,8 +39,8 @@
 
       <section id="daysContainer" class="days" aria-live="polite"></section>
       <section id="emptyArchive" class="panel" hidden>
-        <h2>还没有热点记录</h2>
-        <p>下一次阅读器新闻刷新后，列表会自动显示在这里。</p>
+        <h2 id="emptyArchiveTitle">还没有热点记录</h2>
+        <p id="emptyArchiveMessage">下一次阅读器新闻刷新后，列表会自动显示在这里。</p>
       </section>
     </main>
 
