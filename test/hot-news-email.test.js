@@ -74,6 +74,10 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /ROW_ACTION_MIN_DISTANCE = 36/);
   assert.match(hnScript, /ROW_ACTION_MAX_DISTANCE = 120/);
   assert.match(hnScript, /appendFavoriteAction/);
+  assert.match(hnScript, /favoritePageItems/);
+  assert.match(hnScript, /action\.textContent = saved \? '取消收藏' : '收藏'/);
+  assert.match(hnScript, /\[refs\.days, refs\.empty\]\.forEach\(bindPageSwipe\)/);
+  assert.match(hnScript, /return refs\.days\.children\.length \? refs\.days : refs\.empty/);
   assert.match(hnScript, /target\.category !== 'favorites'/);
   assert.match(hnRefresh, /addChineseTranslations\(stories, 450, \{ strict: false \}\)/);
   assert.match(readerRefresh, /addChineseTranslations\(prepared, 450, \{ strict: false \}\)/);
@@ -83,7 +87,7 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(styles, /\.hn-comments-link/);
   assert.match(styles, /\.favorite-row-action/);
   assert.match(styles, /\.news-row\.is-action-open/);
-  assert.match(styles, /\.days\s*\{[^}]*touch-action:\s*pan-y/s);
+  assert.match(styles, /\.days, #emptyArchive\s*\{[^}]*touch-action:\s*pan-y/s);
   assert.match(styles, /\.page-turn-sheet/);
   assert.match(styles, /@keyframes page-sheet-next/);
   assert.match(styles, /@keyframes page-sheet-previous/);

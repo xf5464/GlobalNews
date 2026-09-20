@@ -17,6 +17,7 @@ const savedFavorites = jsonStorage(FAVORITES_KEY, []);
 let favoriteItems = Array.isArray(savedFavorites)
   ? savedFavorites.filter((item) => item?.url && ['tech', 'market', 'world', 'youtube', 'hn', 'hn-front'].includes(item.category))
   : [];
+let favoritePageItems = null;
 let pendingInitialScrollRestore = true;
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -172,28 +173,23 @@ function attachRowActionGesture(row) {
 }
 
 function appendFavoriteAction(row, item) {
-  const removing = activeCategory === 'favorites';
-  const saved = isFavorite(item);
   const action = document.createElement('button');
-  action.className = `favorite-row-action${removing ? ' remove-favorite' : ''}`;
+  action.className = 'favorite-row-action';
   action.type = 'button';
-  action.textContent = removing ? '取消收藏' : saved ? '已收藏' : '收藏';
-  action.disabled = !removing && saved;
-  action.setAttribute('aria-label', `${action.textContent}：${item.titleZh || item.title || '新闻'}`);
+  function updateAction() {
+    const saved = isFavorite(item);
+    action.classList.toggle('remove-favorite', saved);
+    action.textContent = saved ? '取消收藏' : '收藏';
+    action.setAttribute('aria-label', `${action.textContent}：${item.titleZh || item.title || '新闻'}`);
+  }
+  updateAction();
   action.setAttribute('aria-hidden', 'true');
   action.tabIndex = -1;
   action.addEventListener('click', (event) => {
     event.stopPropagation();
-    if (removing) {
-      if (removeFavorite(item)) renderArchive(archive, archiveLoadedFromCache);
-      return;
-    }
-    if (addFavorite(item)) {
-      action.textContent = '已收藏';
-      action.disabled = true;
-      action.setAttribute('aria-label', `已收藏：${item.titleZh || item.title || '新闻'}`);
-    }
-    setRowActionOpen(row, false);
+    if (isFavorite(item)) removeFavorite(item);
+    else addFavorite(item);
+    updateAction();
   });
   row.append(action);
   attachRowActionGesture(row);
@@ -240,7 +236,10 @@ itemButton = function itemButtonWithHackerNewsStats(item, rank) {
 
 selectedItems = function selectedItems(value) {
   if (activeCategory === 'favorites') {
-    return [...favoriteItems].sort((left, right) => Date.parse(right.favoritedAt || 0) - Date.parse(left.favoritedAt || 0));
+    if (!favoritePageItems) {
+      favoritePageItems = [...favoriteItems].sort((left, right) => Date.parse(right.favoritedAt || 0) - Date.parse(left.favoritedAt || 0));
+    }
+    return [...favoritePageItems];
   }
   const category = activeCategory === 'hn' && activeHnView === 'front' ? 'hn-front' : activeCategory;
   const items = (value.items || []).filter((item) => item.category === category);
@@ -346,6 +345,8 @@ function updatePageTurnToggle() {
 
 function showPage(target, { saveCurrent = true } = {}) {
   if (saveCurrent) saveCurrentScrollPosition();
+  const enteringFavorites = target.category === 'favorites' && activeCategory !== 'favorites';
+  if (enteringFavorites || target.category !== 'favorites') favoritePageItems = null;
   activeCategory = target.category;
   localStorage.setItem('globalnews-reader-category', activeCategory);
   if (target.category === 'hn') {
@@ -357,15 +358,19 @@ function showPage(target, { saveCurrent = true } = {}) {
   if (target.category !== 'favorites' && !selectedItems(archive).length) loadArchive();
 }
 
-function cloneCurrentPage() {
-  const bounds = refs.days.getBoundingClientRect();
+function currentPageSurface() {
+  return refs.days.children.length ? refs.days : refs.empty;
+}
+
+function cloneCurrentPage(source, bounds) {
   const sheet = document.createElement('div');
   sheet.className = 'page-turn-sheet';
   sheet.setAttribute('aria-hidden', 'true');
   sheet.style.top = `${bounds.top}px`;
   sheet.style.left = `${bounds.left}px`;
   sheet.style.width = `${bounds.width}px`;
-  [...refs.days.children].forEach((child) => sheet.append(child.cloneNode(true)));
+  if (source === refs.days) [...source.children].forEach((child) => sheet.append(child.cloneNode(true)));
+  else sheet.append(source.cloneNode(true));
   return sheet;
 }
 
@@ -386,8 +391,9 @@ async function moveToAdjacentPage(step) {
 
   const direction = step > 0 ? 'next' : 'previous';
   saveCurrentScrollPosition();
-  const oldSheet = cloneCurrentPage();
-  const bounds = refs.days.getBoundingClientRect();
+  const surface = currentPageSurface();
+  const bounds = surface.getBoundingClientRect();
+  const oldSheet = cloneCurrentPage(surface, bounds);
   const pivotY = Math.max(80, window.innerHeight * .45 - bounds.top);
   oldSheet.style.transformOrigin = `${direction === 'next' ? 'left' : 'right'} ${pivotY}px`;
   oldSheet.classList.add(`page-turn-sheet-${direction}`);
@@ -405,27 +411,31 @@ async function moveToAdjacentPage(step) {
   return true;
 }
 
-let listTouchStart = null;
-refs.days.addEventListener('touchstart', (event) => {
-  if (pageTurnInProgress || event.touches.length !== 1) { listTouchStart = null; return; }
-  const touch = event.touches[0];
-  listTouchStart = { x: touch.clientX, y: touch.clientY };
-}, { passive: true });
-refs.days.addEventListener('touchmove', (event) => {
-  if (event.touches.length !== 1) listTouchStart = null;
-}, { passive: true });
-refs.days.addEventListener('touchcancel', () => { listTouchStart = null; }, { passive: true });
-refs.days.addEventListener('touchend', (event) => {
-  const start = listTouchStart;
-  listTouchStart = null;
-  const touch = event.changedTouches[0];
-  if (!start || !touch) return;
-  const deltaX = touch.clientX - start.x;
-  const deltaY = touch.clientY - start.y;
-  if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
-  if (event.cancelable) event.preventDefault();
-  moveToAdjacentPage(deltaX < 0 ? 1 : -1);
-}, { passive: false });
+function bindPageSwipe(target) {
+  let touchStart = null;
+  target.addEventListener('touchstart', (event) => {
+    if (pageTurnInProgress || event.touches.length !== 1) { touchStart = null; return; }
+    const touch = event.touches[0];
+    touchStart = { x: touch.clientX, y: touch.clientY };
+  }, { passive: true });
+  target.addEventListener('touchmove', (event) => {
+    if (event.touches.length !== 1) touchStart = null;
+  }, { passive: true });
+  target.addEventListener('touchcancel', () => { touchStart = null; }, { passive: true });
+  target.addEventListener('touchend', (event) => {
+    const start = touchStart;
+    touchStart = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
+    if (event.cancelable) event.preventDefault();
+    moveToAdjacentPage(deltaX < 0 ? 1 : -1);
+  }, { passive: false });
+}
+
+[refs.days, refs.empty].forEach(bindPageSwipe);
 
 pageTurnToggle?.addEventListener('click', () => {
   pageTurnEnabled = !pageTurnEnabled;

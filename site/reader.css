@@ -71,7 +71,8 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
 }
 .category-tab:active { transform: scale(.99); }
 
-.days { position: relative; display: grid; gap: 24px; touch-action: pan-y; perspective: 1100px; }
+.days, #emptyArchive { touch-action: pan-y; }
+.days { position: relative; display: grid; gap: 24px; perspective: 1100px; }
 .days.page-turning { pointer-events: none; isolation: isolate; }
 .page-turn-sheet {
   position: fixed; z-index: 4; display: grid; gap: 24px;
@@ -159,7 +160,6 @@ h2 { margin: 0; font-size: 28px; line-height: 1.25; }
   flex-basis: 68px; width: 68px; min-width: 68px; border-left-width: 1px;
 }
 .favorite-row-action.remove-favorite { background: #b42318; }
-.favorite-row-action:disabled { background: #667085; }
 .favorite-row-action:active:not(:disabled) { filter: brightness(.9); }
 .rank { padding-top: 2px; color: var(--blue); font-size: 13px; font-weight: 760; }
 .news-title { display: block; font-family: ui-serif, "Songti SC", STSong, serif; font-size: 18px; font-weight: 700; line-height: 1.42; }
