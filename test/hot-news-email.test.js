@@ -45,7 +45,7 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /news\.ycombinator\.com\/item\?id=/);
   assert.match(hnScript, /comments\.href = chromeUrl\(commentsUrl\)/);
   assert.match(hnScript, /comments\.textContent = '评论'/);
-  assert.match(hnScript, /SWIPE_MIN_DISTANCE = 120/);
+  assert.match(hnScript, /SWIPE_MIN_DISTANCE = 48/);
   assert.match(hnScript, /moveToAdjacentPage\(deltaX < 0 \? 1 : -1\)/);
   assert.match(hnScript, /\{ category: 'hn', hnView: 'current' \}/);
   assert.match(hnScript, /\{ category: 'hn', hnView: 'front' \}/);
@@ -55,7 +55,7 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /PAGE_TURN_STORAGE_KEY/);
   assert.match(hnScript, /pageTurnEnabled/);
   assert.match(hnScript, /LONG_SWIPE_PAGE_STORAGE_KEY/);
-  assert.match(hnScript, /if \(!longSwipePageEnabled\) return/);
+  assert.match(hnScript, /longSwipe \? !longSwipePageEnabled : favoriteMode !== 'button'/);
   assert.match(hnScript, /prefers-reduced-motion: reduce/);
   assert.match(hnScript, /SCROLL_POSITIONS_KEY/);
   assert.match(hnScript, /hn-\$\{target\.hnView/);

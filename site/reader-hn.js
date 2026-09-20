@@ -319,7 +319,7 @@ selectCategory = function selectCategory(category) {
   showPage(pageTarget(category));
 };
 
-const SWIPE_MIN_DISTANCE = 120;
+const SWIPE_MIN_DISTANCE = 48;
 const SWIPE_DIRECTION_DOMINANCE = 1.25;
 const PAGE_TURN_MS = 420;
 const PAGE_TURN_STORAGE_KEY = 'globalnews-reader-page-turn';
@@ -438,8 +438,10 @@ function bindPageSwipe(target) {
     if (!start || !touch) return;
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
-    if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
-    if (!longSwipePageEnabled) return;
+    const horizontal = Math.abs(deltaX);
+    if (horizontal < SWIPE_MIN_DISTANCE || horizontal <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
+    const longSwipe = horizontal >= ROW_ACTION_MAX_DISTANCE;
+    if (longSwipe ? !longSwipePageEnabled : favoriteMode !== 'button') return;
     if (event.cancelable) event.preventDefault();
     moveToAdjacentPage(deltaX < 0 ? 1 : -1);
   }, { passive: false });
