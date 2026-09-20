@@ -10,6 +10,7 @@ if (typeof activeCategory !== 'undefined') {
 let activeHnView = localStorage.getItem('globalnews-reader-hn-view') === 'front' ? 'front' : 'current';
 const SCROLL_POSITIONS_KEY = 'globalnews-reader-scroll-positions-v1';
 const FAVORITES_KEY = 'globalnews-reader-favorites-v1';
+const FAVORITE_MODE_STORAGE_KEY = 'globalnews-reader-favorite-mode';
 const savedScrollPositions = jsonStorage(SCROLL_POSITIONS_KEY, {});
 let pageScrollPositions = savedScrollPositions && typeof savedScrollPositions === 'object' && !Array.isArray(savedScrollPositions)
   ? savedScrollPositions : {};
@@ -18,6 +19,7 @@ let favoriteItems = Array.isArray(savedFavorites)
   ? savedFavorites.filter((item) => item?.url && ['tech', 'market', 'world', 'youtube', 'hn', 'hn-front'].includes(item.category))
   : [];
 let favoritePageItems = null;
+let favoriteMode = localStorage.getItem(FAVORITE_MODE_STORAGE_KEY) === 'button' ? 'button' : 'swipe';
 let pendingInitialScrollRestore = true;
 
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -165,10 +167,10 @@ function attachRowActionGesture(row) {
     const deltaY = touch.clientY - origin.y;
     const horizontal = Math.abs(deltaX);
     if (horizontal < ROW_ACTION_MIN_DISTANCE || horizontal > ROW_ACTION_MAX_DISTANCE || horizontal <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
-    if (deltaX >= 0 && !row.classList.contains('is-action-open')) return;
+    if (deltaX <= 0 && !row.classList.contains('is-action-open')) return;
     if (event.cancelable) event.preventDefault();
     event.stopPropagation();
-    setRowActionOpen(row, deltaX < 0);
+    setRowActionOpen(row, deltaX > 0);
   }, { passive: false });
 }
 
@@ -183,8 +185,10 @@ function appendFavoriteAction(row, item) {
     action.setAttribute('aria-label', `${action.textContent}：${item.titleZh || item.title || '新闻'}`);
   }
   updateAction();
-  action.setAttribute('aria-hidden', 'true');
-  action.tabIndex = -1;
+  const persistent = favoriteMode === 'button';
+  action.classList.toggle('is-persistent', persistent);
+  action.setAttribute('aria-hidden', String(!persistent));
+  action.tabIndex = persistent ? 0 : -1;
   action.addEventListener('click', (event) => {
     event.stopPropagation();
     if (isFavorite(item)) removeFavorite(item);
@@ -192,7 +196,7 @@ function appendFavoriteAction(row, item) {
     updateAction();
   });
   row.append(action);
-  attachRowActionGesture(row);
+  if (!persistent) attachRowActionGesture(row);
 }
 
 function hackerNewsCommentsUrl(item) {
@@ -315,12 +319,19 @@ selectCategory = function selectCategory(category) {
   showPage(pageTarget(category));
 };
 
-const SWIPE_MIN_DISTANCE = 48;
+const SWIPE_MIN_DISTANCE = 120;
 const SWIPE_DIRECTION_DOMINANCE = 1.25;
 const PAGE_TURN_MS = 420;
 const PAGE_TURN_STORAGE_KEY = 'globalnews-reader-page-turn';
-const pageTurnToggle = document.querySelector('#pageTurnToggle');
+const LONG_SWIPE_PAGE_STORAGE_KEY = 'globalnews-reader-long-swipe-page';
+const settingsButton = document.querySelector('#settingsButton');
+const settingsDialog = document.querySelector('#settingsDialog');
+const closeSettings = document.querySelector('#closeSettings');
+const pageTurnEffectSetting = document.querySelector('#pageTurnEffectSetting');
+const longSwipePageSetting = document.querySelector('#longSwipePageSetting');
+const favoriteModeSettings = [...document.querySelectorAll('input[name="favoriteMode"]')];
 let pageTurnEnabled = localStorage.getItem(PAGE_TURN_STORAGE_KEY) !== 'off';
+let longSwipePageEnabled = localStorage.getItem(LONG_SWIPE_PAGE_STORAGE_KEY) !== 'off';
 let pageTurnInProgress = false;
 
 function swipePages() {
@@ -335,12 +346,10 @@ function swipePages() {
   });
 }
 
-function updatePageTurnToggle() {
-  pageTurnToggle?.setAttribute('aria-checked', String(pageTurnEnabled));
-  if (pageTurnToggle) {
-    pageTurnToggle.title = pageTurnEnabled ? '关闭翻页效果' : '开启翻页效果';
-    pageTurnToggle.setAttribute('aria-label', pageTurnToggle.title);
-  }
+function syncSettingsControls() {
+  favoriteModeSettings.forEach((input) => { input.checked = input.value === favoriteMode; });
+  if (pageTurnEffectSetting) pageTurnEffectSetting.checked = pageTurnEnabled;
+  if (longSwipePageSetting) longSwipePageSetting.checked = longSwipePageEnabled;
 }
 
 function showPage(target, { saveCurrent = true } = {}) {
@@ -430,6 +439,7 @@ function bindPageSwipe(target) {
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
     if (Math.abs(deltaX) < SWIPE_MIN_DISTANCE || Math.abs(deltaX) <= Math.abs(deltaY) * SWIPE_DIRECTION_DOMINANCE) return;
+    if (!longSwipePageEnabled) return;
     if (event.cancelable) event.preventDefault();
     moveToAdjacentPage(deltaX < 0 ? 1 : -1);
   }, { passive: false });
@@ -437,16 +447,33 @@ function bindPageSwipe(target) {
 
 [refs.days, refs.empty].forEach(bindPageSwipe);
 
-pageTurnToggle?.addEventListener('click', () => {
-  pageTurnEnabled = !pageTurnEnabled;
+settingsButton?.addEventListener('click', () => {
+  syncSettingsControls();
+  if (!settingsDialog.open) settingsDialog.showModal();
+});
+closeSettings?.addEventListener('click', () => settingsDialog.close());
+settingsDialog?.addEventListener('click', (event) => {
+  if (event.target === settingsDialog) settingsDialog.close();
+});
+favoriteModeSettings.forEach((input) => input.addEventListener('change', () => {
+  if (!input.checked) return;
+  favoriteMode = input.value === 'button' ? 'button' : 'swipe';
+  localStorage.setItem(FAVORITE_MODE_STORAGE_KEY, favoriteMode);
+  renderArchive(archive, archiveLoadedFromCache);
+}));
+pageTurnEffectSetting?.addEventListener('change', () => {
+  pageTurnEnabled = pageTurnEffectSetting.checked;
   localStorage.setItem(PAGE_TURN_STORAGE_KEY, pageTurnEnabled ? 'on' : 'off');
-  updatePageTurnToggle();
+});
+longSwipePageSetting?.addEventListener('change', () => {
+  longSwipePageEnabled = longSwipePageSetting.checked;
+  localStorage.setItem(LONG_SWIPE_PAGE_STORAGE_KEY, longSwipePageEnabled ? 'on' : 'off');
 });
 window.addEventListener('pagehide', saveCurrentScrollPosition);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) saveCurrentScrollPosition();
 });
-updatePageTurnToggle();
+syncSettingsControls();
 
 ensureHnSubtabs();
 updateCategoryTabs();

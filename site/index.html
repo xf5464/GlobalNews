@@ -16,10 +16,8 @@
   </head>
   <body>
     <header class="topbar">
-      <div class="brand-group"><a class="brand" href="./">GlobalNews</a><span class="version-badge">v2026.09.20.2</span></div>
-      <button id="pageTurnToggle" class="page-turn-toggle" type="button" role="switch" aria-checked="true">
-        <span>翻页</span><span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-      </button>
+      <div class="brand-group"><a class="brand" href="./">GlobalNews</a><span class="version-badge">v2026.09.20.3</span></div>
+      <button id="settingsButton" class="icon-button settings-button" type="button" aria-haspopup="dialog" aria-controls="settingsDialog">设置</button>
     </header>
     <main>
       <section class="hero">
@@ -43,6 +41,36 @@
         <p id="emptyArchiveMessage">下一次阅读器新闻刷新后，列表会自动显示在这里。</p>
       </section>
     </main>
+
+    <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsTitle">
+      <div class="settings-shell">
+        <header class="settings-header">
+          <h2 id="settingsTitle">设置</h2>
+          <button id="closeSettings" class="icon-button" type="button" aria-label="关闭设置">关闭</button>
+        </header>
+        <fieldset class="settings-group">
+          <legend>收藏方式</legend>
+          <label class="settings-choice">
+            <input type="radio" name="favoriteMode" value="swipe" />
+            <span><strong>右短滑</strong><small>在新闻上短距离右滑后显示收藏按钮</small></span>
+          </label>
+          <label class="settings-choice">
+            <input type="radio" name="favoriteMode" value="button" />
+            <span><strong>新闻右侧</strong><small>收藏按钮始终显示在每条新闻右边</small></span>
+          </label>
+        </fieldset>
+        <div class="settings-group">
+          <label class="settings-toggle" for="pageTurnEffectSetting">
+            <span><strong>翻页效果</strong><small>切换分页时播放翻书动画</small></span>
+            <input id="pageTurnEffectSetting" type="checkbox" role="switch" />
+          </label>
+          <label class="settings-toggle" for="longSwipePageSetting">
+            <span><strong>长滑翻页</strong><small>左右长滑切换上一个或下一个分页</small></span>
+            <input id="longSwipePageSetting" type="checkbox" role="switch" />
+          </label>
+        </div>
+      </div>
+    </dialog>
 
     <dialog id="readerDialog">
       <div class="dialog-shell">

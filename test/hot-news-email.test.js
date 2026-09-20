@@ -45,7 +45,7 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /news\.ycombinator\.com\/item\?id=/);
   assert.match(hnScript, /comments\.href = chromeUrl\(commentsUrl\)/);
   assert.match(hnScript, /comments\.textContent = '评论'/);
-  assert.match(hnScript, /SWIPE_MIN_DISTANCE = 48/);
+  assert.match(hnScript, /SWIPE_MIN_DISTANCE = 120/);
   assert.match(hnScript, /moveToAdjacentPage\(deltaX < 0 \? 1 : -1\)/);
   assert.match(hnScript, /\{ category: 'hn', hnView: 'current' \}/);
   assert.match(hnScript, /\{ category: 'hn', hnView: 'front' \}/);
@@ -54,6 +54,8 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /child\.cloneNode\(true\)/);
   assert.match(hnScript, /PAGE_TURN_STORAGE_KEY/);
   assert.match(hnScript, /pageTurnEnabled/);
+  assert.match(hnScript, /LONG_SWIPE_PAGE_STORAGE_KEY/);
+  assert.match(hnScript, /if \(!longSwipePageEnabled\) return/);
   assert.match(hnScript, /prefers-reduced-motion: reduce/);
   assert.match(hnScript, /SCROLL_POSITIONS_KEY/);
   assert.match(hnScript, /hn-\$\{target\.hnView/);
@@ -74,6 +76,9 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.match(hnScript, /ROW_ACTION_MIN_DISTANCE = 36/);
   assert.match(hnScript, /ROW_ACTION_MAX_DISTANCE = 120/);
   assert.match(hnScript, /appendFavoriteAction/);
+  assert.match(hnScript, /FAVORITE_MODE_STORAGE_KEY/);
+  assert.match(hnScript, /favoriteMode === 'button'/);
+  assert.match(hnScript, /setRowActionOpen\(row, deltaX > 0\)/);
   assert.match(hnScript, /favoritePageItems/);
   assert.match(hnScript, /action\.textContent = saved \? '取消收藏' : '收藏'/);
   assert.match(hnScript, /\[refs\.days, refs\.empty\]\.forEach\(bindPageSwipe\)/);
@@ -86,13 +91,19 @@ test("reader shows the latest snapshot without hour filters", () => {
   assert.doesNotMatch(finalVerification, /untranslated titles/);
   assert.match(styles, /\.hn-comments-link/);
   assert.match(styles, /\.favorite-row-action/);
+  assert.match(styles, /\.favorite-row-action\.is-persistent/);
   assert.match(styles, /\.news-row\.is-action-open/);
   assert.match(styles, /\.days, #emptyArchive\s*\{[^}]*touch-action:\s*pan-y/s);
   assert.match(styles, /\.page-turn-sheet/);
   assert.match(styles, /@keyframes page-sheet-next/);
   assert.match(styles, /@keyframes page-sheet-previous/);
   assert.match(styles, /@keyframes page-sheet-shade/);
-  assert.match(html, /id="pageTurnToggle"[^>]*role="switch"/);
+  assert.match(html, /id="settingsButton"[^>]*aria-haspopup="dialog"/);
+  assert.match(html, /id="settingsDialog"[^>]*aria-labelledby="settingsTitle"/);
+  assert.match(html, /name="favoriteMode" value="swipe"/);
+  assert.match(html, /name="favoriteMode" value="button"/);
+  assert.match(html, /id="pageTurnEffectSetting"[^>]*role="switch"/);
+  assert.match(html, /id="longSwipePageSetting"[^>]*role="switch"/);
   assert.match(uiRules, /Hacker News 评论入口/);
   assert.match(uiRules, /列表左右滑动分页/);
   assert.match(uiRules, /分别持久记录上一次的纵向滚动位置/);
