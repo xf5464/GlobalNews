@@ -24,7 +24,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,19 +53,28 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/data/recent.json
-          if ! git diff --cached --quiet; then
+          snapshot_file="$RUNNER_TEMP/globalnews-recent.json"
+          cp site/data/recent.json "$snapshot_file"
+          git restore --source=HEAD --staged --worktree site/data/recent.json
+          saved=false
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B refresh-snapshot origin/main
+            cp "$snapshot_file" site/data/recent.json
+            git add site/data/recent.json
+            if git diff --cached --quiet; then
+              saved=true
+              break
+            fi
             git commit -m "chore: refresh GlobalNews snapshot"
-            for attempt in 1 2 3; do
-              git pull --rebase origin main
-              if git push; then
-                break
-              fi
-              if [[ "$attempt" == "3" ]]; then
-                exit 1
-              fi
-              sleep $((attempt * 3))
-            done
+            if git push origin HEAD:main; then
+              saved=true
+              break
+            fi
+            sleep $((attempt * 3))
+          done
+          if [[ "$saved" != "true" ]]; then
+            exit 1
           fi
 
       - name: Build refreshed site

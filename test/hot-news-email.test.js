@@ -7,6 +7,8 @@ const {
   readerUrl, recipients, resolveGoogleNewsItems, resolveGoogleNewsUrl,
   youtubeItemsFromResponses,
 } = require("../scripts/send-hot-news-email");
+const { restoreIncompleteCategories } = require("../scripts/refresh-categories-independent");
+const { shouldKeepReaderItem } = require("../scripts/refresh-reader-news");
 
 test("uses ten fixed free sources for each reader tab", () => {
   assert.equal(NEWS_SOURCES.tech.length, 10);
@@ -135,9 +137,30 @@ test("refreshes categories independently and keeps YouTube on a four-hour cadenc
   assert.equal(packageJson.scripts.refresh, "node scripts/refresh-categories-independent.js");
   assert.match(orchestrator, /continuing so the other categories can still update/);
   assert.match(orchestrator, /HOT_NEWS_SKIP_YOUTUBE: 'true'/);
+  assert.match(orchestrator, /Restored complete previous data for/);
   assert.match(collector, /HOT_NEWS_SKIP_YOUTUBE/);
   assert.match(youtube, /4 \* 60 \* 60 \* 1000/);
   assert.match(reader, /return updatedTimeLabel\(latestSourceTime\)/);
+});
+
+test("restores a complete category when a later stage leaves only nine items", () => {
+  const makeItems = (category, count, cached = false) => Array.from({ length: count }, (_, index) => ({
+    category, title: `${category}-${index}`, url: `https://example.com/${category}/${index}`,
+    sourceOrder: index, isCached: cached,
+  }));
+  const original = { items: makeItems("hn-front", 10) };
+  const current = { items: [...makeItems("tech", 10), ...makeItems("hn-front", 9)] };
+  const repaired = restoreIncompleteCategories(current, original);
+  assert.deepEqual(repaired.restored, ["hn-front"]);
+  const front = repaired.archive.items.filter((item) => item.category === "hn-front");
+  assert.equal(front.length, 10);
+  assert.ok(front.every((item) => item.isCached));
+  assert.equal(repaired.archive.items.filter((item) => item.category === "tech").length, 10);
+});
+
+test("paid-source filtering does not delete retained Hacker News fallback items", () => {
+  assert.equal(shouldKeepReaderItem({ category: "market", source: "MarketWatch", url: "https://www.marketwatch.com/story/example" }), false);
+  assert.equal(shouldKeepReaderItem({ category: "hn-front", source: "Hacker News", url: "https://www.marketwatch.com/story/example" }), true);
 });
 
 test("takes a publisher homepage lead instead of a Google News search result", () => {

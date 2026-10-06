@@ -6,6 +6,23 @@ const { addChineseTranslations } = require('./send-hot-news-email');
 const ARCHIVE_PATH = String(process.env.HOT_NEWS_ARCHIVE_PATH || 'site/data/recent.json').trim();
 const TOP_LIMIT = 10;
 const HN_API_ROOT = 'https://hacker-news.firebaseio.com/v0';
+const RETRY_DELAYS_MS = [1200, 3000];
+
+function wait(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+async function withRetry(operation, label) {
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+    try { return await operation(); }
+    catch (error) {
+      lastError = error;
+      if (attempt === RETRY_DELAYS_MS.length) break;
+      console.warn(`${label} attempt ${attempt + 1} failed; retrying: ${error.message}`);
+      await wait(RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
+}
 
 async function fetchJson(url, timeout = 10000) {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'user-agent': 'GlobalNews/1.0' } });
@@ -66,7 +83,10 @@ function frontStoryIds(html) {
 }
 
 async function fetchHackerNewsFront10(now = Date.now()) {
-  const html = await fetchText('https://news.ycombinator.com/front', 15000);
+  const html = await withRetry(
+    () => fetchText('https://news.ycombinator.com/front', 10000),
+    'Hacker News /front',
+  );
   const ids = frontStoryIds(html);
   if (ids.length < TOP_LIMIT) throw new Error(`Hacker News /front returned only ${ids.length}/${TOP_LIMIT} story ids.`);
   return fetchStoriesByIds(ids, 'hn-front', now);
@@ -113,4 +133,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
-module.exports = { fetchHackerNewsTop10, fetchHackerNewsFront10, frontStoryIds };
+module.exports = { fetchHackerNewsTop10, fetchHackerNewsFront10, frontStoryIds, withRetry };

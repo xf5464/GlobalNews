@@ -307,6 +307,9 @@ async function collectSection(category, now, previousBySource, baselineBySource,
   }));
   return translateItems(results.filter(Boolean), knownTranslations, previousBySource, baselineBySource);
 }
+function shouldKeepReaderItem(item) {
+  return !['tech', 'market', 'world'].includes(item.category) || !isPaywalledItem(item);
+}
 async function main() {
   const archivePath = String(process.env.HOT_NEWS_ARCHIVE_PATH || 'site/data/recent.json').trim(); const now = Date.now();
   const knownTranslations = archivedTitleTranslations(archivePath); const knownGoogleNewsUrls = archivedGoogleNewsUrls(archivePath); const previousBySource = archivedSourceItems(archivePath);
@@ -329,9 +332,9 @@ async function main() {
   catch (error) { console.warn(`Event cloud refresh failed; kept the baseline cloud: ${error.message}`); }
   const cachedCount = [...tech, ...market, ...world, ...youtube].filter((item) => item.isCached).length;
   const news = { tech, market, world, youtube, trends, failureCount: cachedCount, fetchedAt: new Date(now).toISOString() };
-  const archive = saveNewsArchive(news, archivePath, now, (item) => item.category === 'youtube' || !isPaywalledItem(item));
+  const archive = saveNewsArchive(news, archivePath, now, shouldKeepReaderItem);
   console.log(`Saved current reader snapshot: ${archive.items.length} items; cached fallbacks=${cachedCount}; updated=${archive.updatedAt}.`);
   if (!environmentFlag(process.env.HOT_NEWS_REFRESH_ONLY)) console.log('refresh-reader-news.js is intended for reader refresh mode; no email was sent.');
 }
 if (require.main === module) main().catch((error) => { console.error(error.stack || error.message); process.exitCode = 1; });
-module.exports = { TECH_SOURCES, cleanHeadlineText, collectTechTop10, hasReadableHeadlineShape, isClearlyNonTechHeadline, parseSectionHeadline, polishChineseTitle, rankTechClusters, sameTechEvent };
+module.exports = { TECH_SOURCES, cleanHeadlineText, collectTechTop10, hasReadableHeadlineShape, isClearlyNonTechHeadline, parseSectionHeadline, polishChineseTitle, rankTechClusters, sameTechEvent, shouldKeepReaderItem };
