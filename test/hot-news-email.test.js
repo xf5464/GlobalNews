@@ -126,6 +126,10 @@ test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
   assert.match(worker, /env\.GITHUB_TOKEN/);
   assert.match(wrangler, /\[triggers\][\s\S]*crons = \["\*\/30 \* \* \* \*"\]/);
   assert.doesNotMatch(workflow, /^\s+schedule:/m);
+  assert.match(workflow, /actions:\s+read/);
+  assert.match(workflow, /Wait for Pages artifact visibility/);
+  assert.match(workflow, /actions\/runs\/\$\{GITHUB_RUN_ID\}\/artifacts/);
+  assert.match(workflow, /select\(\.name == "github-pages"/);
 });
 
 test("refreshes categories independently and keeps YouTube on a four-hour cadence", () => {
