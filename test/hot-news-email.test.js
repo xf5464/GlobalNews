@@ -130,6 +130,10 @@ test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
   assert.match(workflow, /Wait for Pages artifact visibility/);
   assert.match(workflow, /actions\/runs\/\$\{GITHUB_RUN_ID\}\/artifacts/);
   assert.match(workflow, /select\(\.name == "github-pages"/);
+  assert.match(workflow, /deploy:\s*\n\s+needs: refresh/);
+  assert.match(workflow, /consecutive_visible/);
+  assert.match(workflow, /continue-on-error: true/);
+  assert.match(workflow, /Retry refreshed site deployment/);
 });
 
 test("refreshes categories independently and keeps YouTube on a four-hour cadence", () => {
