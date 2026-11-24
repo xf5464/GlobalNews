@@ -121,6 +121,7 @@ test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
   const worker = fs.readFileSync("cloudflare/globalnews-reader.js", "utf8");
   const wrangler = fs.readFileSync("cloudflare/wrangler.reader.toml", "utf8");
   const workflow = fs.readFileSync(".github/workflows/refresh-news.yml", "utf8");
+  const deployWorkflow = fs.readFileSync(".github/workflows/deploy-pages.yml", "utf8");
   assert.match(worker, /async scheduled\(event, env, ctx\)/);
   assert.match(worker, /xf5464\/GlobalNews\/actions\/workflows\/refresh-news\.yml\/dispatches/);
   assert.match(worker, /env\.GITHUB_TOKEN/);
@@ -134,6 +135,11 @@ test("Cloudflare Cron dispatches the GlobalNews refresh workflow", () => {
   assert.match(workflow, /consecutive_visible/);
   assert.match(workflow, /continue-on-error: true/);
   assert.match(workflow, /Retry refreshed site deployment/);
+  assert.match(deployWorkflow, /actions:\s+read/);
+  assert.match(deployWorkflow, /deploy:\s*\n\s+needs: build/);
+  assert.match(deployWorkflow, /consecutive_visible/);
+  assert.match(deployWorkflow, /continue-on-error: true/);
+  assert.match(deployWorkflow, /Retry GitHub Pages deployment/);
 });
 
 test("refreshes categories independently and keeps YouTube on a four-hour cadence", () => {

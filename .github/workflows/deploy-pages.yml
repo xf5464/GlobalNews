@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -15,10 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -48,6 +46,55 @@ jobs:
         with:
           path: ./dist
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment_primary.outputs.page_url || steps.deployment_retry.outputs.page_url }}
+    steps:
+      - name: Wait for Pages artifact visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          consecutive_visible=0
+          for attempt in $(seq 1 20); do
+            artifact_count="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts" \
+              --jq '[.artifacts[] | select(.name == "github-pages" and .expired == false)] | length' \
+              2>/dev/null || true)"
+
+            if [[ "$artifact_count" =~ ^[1-9][0-9]*$ ]]; then
+              consecutive_visible=$((consecutive_visible + 1))
+              echo "Pages artifact is visible (${consecutive_visible}/3 stable checks)."
+            else
+              consecutive_visible=0
+              echo "Pages artifact is not visible yet (attempt ${attempt}/20)."
+            fi
+
+            if [[ "$consecutive_visible" -ge 3 ]]; then
+              echo "Pages artifact visibility is stable; allowing metadata services to settle."
+              sleep 5
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Pages artifact did not remain visible across three checks." >&2
+          exit 1
+
       - name: Deploy to GitHub Pages
-        id: deployment
+        id: deployment_primary
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retrying Pages deployment
+        if: steps.deployment_primary.outcome == 'failure'
+        run: sleep 10
+
+      - name: Retry GitHub Pages deployment
+        id: deployment_retry
+        if: steps.deployment_primary.outcome == 'failure'
         uses: actions/deploy-pages@v4
